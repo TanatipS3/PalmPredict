@@ -158,6 +158,7 @@ class _UserprofilePageState extends State<UserprofilePage> {
               BottomNavigationBarItem(
                 icon: Icon(Icons.history),
                 label: 'ประวัติ',
+                
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.menu),

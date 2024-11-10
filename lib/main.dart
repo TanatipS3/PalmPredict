@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:plamproject/pages/Mainmenu.dart';
 import 'package:plamproject/pages/Userprofile.dart';
 
 void main() {
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Flutter project',
-      home: UserprofilePage(),
+      home: MainmenuPage(),
     );
   }
 }
