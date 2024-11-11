@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-
-
 class PalmScreen extends StatefulWidget {
   @override
   _PalmScreenState createState() => _PalmScreenState();
@@ -13,27 +11,55 @@ class _PalmScreenState extends State<PalmScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("แสดง"),
-        centerTitle: true, // จัดตำแหน่งข้อความให้อยู่ตรงกลาง
-        backgroundColor: Colors.blueAccent,
+appBar: AppBar(
+  title: const Text(
+    "แสดง",
+    style: TextStyle(
+      fontSize: 25,
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+    ),
+  ),
+  centerTitle: true, // Center-align the title
+  backgroundColor: Colors.transparent, // Make AppBar background transparent
+  flexibleSpace: Container(
+    decoration: const BoxDecoration(
+      image: DecorationImage(
+        image: AssetImage("assets/profilebackgground2.jpg"),
+        colorFilter: ColorFilter.mode(
+          Color.fromARGB(255, 255, 255, 255), // Overlay color
+          BlendMode.colorBurn, // Blend mode
+        ),
+        fit: BoxFit.cover,
       ),
+    ),
+  ),
+),
+
       body: Stack(
         children: [
-          // เปลี่ยนพื้นหลังเป็นสีฟ้า
+          // Full-screen background with image, color overlay, and blend mode
           Container(
-            color: Colors.blue[200], // สีฟ้าของพื้นหลัง
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("assets/profilebackgground2.jpg"),
+                colorFilter: ColorFilter.mode(
+                  Color.fromARGB(255, 44, 128, 196), // Overlay color
+                  BlendMode.colorBurn, // Blend mode
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
-          // กล่องที่แสดงภาพฝ่ามือและเส้น
+          // Center container displaying hand image and lines
           Center(
             child: Container(
               width: 400,
               height: 500,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.blue, width: 2),
-                image: DecorationImage(
-                  image:
-                      AssetImage('assets/hand.png'), // เพิ่มรูปฝ่ามือที่ต้องการ
+                image: const DecorationImage(
+                  image: AssetImage('assets/hand.png'), // Hand image
                   fit: BoxFit.cover,
                 ),
               ),
@@ -42,16 +68,16 @@ class _PalmScreenState extends State<PalmScreen> {
               ),
             ),
           ),
-          // ไอคอนบันทึก
+          // Save icon at the bottom center
           Positioned(
             bottom: 20,
             left: 0,
             right: 0,
             child: Center(
               child: IconButton(
-                icon: Icon(Icons.save, size: 50, color: Colors.black),
+                icon: const Icon(Icons.save, size: 50, color: Colors.white),
                 onPressed: () {
-                  // ใส่ฟังก์ชันการบันทึกที่ต้องการ
+                  // Save functionality
                 },
               ),
             ),
@@ -105,14 +131,23 @@ class PalmLinePainter extends CustomPainter {
       ..strokeWidth = 2;
 
     // เส้นสีแดง
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.2),
-        Offset(size.width * 0.5, size.height * 0.3), paintRed);
+    canvas.drawLine(
+      Offset(size.width * 0.4, size.height * 0.2),
+      Offset(size.width * 0.5, size.height * 0.3),
+      paintRed,
+    );
 
     // เส้นสีน้ำเงิน
-    canvas.drawLine(Offset(size.width * 0.2, size.height * 0.5),
-        Offset(size.width * 0.8, size.height * 0.5), paintBlue);
-    canvas.drawLine(Offset(size.width * 0.3, size.height * 0.6),
-        Offset(size.width * 0.7, size.height * 0.7), paintBlue);
+    canvas.drawLine(
+      Offset(size.width * 0.2, size.height * 0.5),
+      Offset(size.width * 0.8, size.height * 0.5),
+      paintBlue,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.3, size.height * 0.6),
+      Offset(size.width * 0.7, size.height * 0.7),
+      paintBlue,
+    );
   }
 
   @override
