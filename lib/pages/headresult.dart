@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:plamproject/pages/Mainmenu.dart';
 import 'package:plamproject/pages/Userprofile.dart';
 import 'package:plamproject/pages/history.dart';
+import 'package:plamproject/pages/liferesult.dart';
+import 'package:plamproject/pages/mindresult.dart';
 
 class Headresult extends StatefulWidget {
   @override
@@ -17,8 +19,29 @@ class _HeadresultState extends State<Headresult> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("แสดง"),
+        title: const Text(
+          "แสดง",
+          style: TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      
         centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage("assets/profilebackgground2.jpg"),
+              colorFilter: ColorFilter.mode(
+                Color.fromARGB(255, 255, 255, 255),
+                BlendMode.colorBurn,
+              ),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+
         backgroundColor: Colors.blueAccent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -31,8 +54,20 @@ class _HeadresultState extends State<Headresult> {
       ),
       body: Stack(
         children: [
-          Container(color: Colors.blue[200]),
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("assets/profilebackgground2.jpg"),
+                colorFilter: ColorFilter.mode(
+                  Color.fromARGB(255, 44, 128, 196),
+                  BlendMode.colorBurn,
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
 
+        
           Center(
             child: Container(
               width: 400,
@@ -74,43 +109,68 @@ class _HeadresultState extends State<Headresult> {
 
           // ToggleButtons สำหรับเลือกเส้น
           Positioned(
-            right: 20,
-            top: 250,
-            child: Column(
-              children: [
-                ToggleButtons(
-                  direction: Axis.vertical, // จัดปุ่มให้อยู่ในแนวตั้ง
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นจิตใจ"),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นสมอง"),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นชีวิต"),
-                    ),
-                  ],
-                  isSelected: isSelected,
-                  onPressed: (int index) {
-                    setState(() {
-                      for (int i = 0; i < isSelected.length; i++) {
-                        isSelected[i] = i == index;
-                      }
-                    });
-                  },
-                  color: Colors.black,
-                  selectedColor: Colors.red,
-                  fillColor: Colors.white,
-                  borderRadius: BorderRadius.circular(8.0),
-                  selectedBorderColor: Colors.red,
-                ),
-              ],
-            ),
+  right: 20,
+  top: 250,
+  child: Column(
+    children: [
+      ToggleButtons(
+        direction: Axis.vertical,
+        children: const [
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text("เส้นจิตใจ"),
           ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text("เส้นสมอง"),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text("เส้นชีวิต"),
+          ),
+        ],
+        isSelected: isSelected,
+        onPressed: (int index) {
+          setState(() {
+            for (int i = 0; i < isSelected.length; i++) {
+              isSelected[i] = i == index;
+            }
+          });
+
+          // Navigate to different pages based on the selected index
+          switch (index) {
+            case 0:
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (BuildContext context) => Maindresult(),
+                ),
+              );
+              break;
+            case 1:
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (BuildContext context) => Liferesult(),
+                ),
+              );
+              break;
+            case 2:
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (BuildContext context) => Liferesult(),
+                ),
+              );
+              break;
+          }
+        },
+        color: Colors.black,
+        selectedColor: Colors.red,
+        fillColor: Colors.white,
+        borderRadius: BorderRadius.circular(8.0),
+        selectedBorderColor: Colors.red,
+      ),
+    ],
+  ),
+),
 
           if (isSaveButtonVisible)
             Positioned(
@@ -119,7 +179,7 @@ class _HeadresultState extends State<Headresult> {
               right: 0,
               child: Center(
                 child: IconButton(
-                  icon: Icon(Icons.save, size: 50, color: Colors.black),
+                  icon: Icon(Icons.save, size: 50, color: Colors.white),
                   onPressed: () {
                     setState(() {
                       isSaveButtonVisible = false;

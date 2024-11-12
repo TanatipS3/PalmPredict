@@ -22,6 +22,13 @@ class _PalmScreenSavedState extends State<PalmScreenSaved> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: Colors.white.withOpacity(0.8),
+          onPressed: () {
+            Navigator.of(context).pop(); // ย้อนกลับไปหน้าก่อนหน้า
+          },
+        ),
         title: const Text(
           "แสดง",
           style: TextStyle(
@@ -49,7 +56,16 @@ class _PalmScreenSavedState extends State<PalmScreenSaved> {
         children: [
           // Full-screen background with image, color overlay, and blend mode
           Container(
-            color: Colors.blue[200], // สีฟ้าของพื้นหลัง
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("assets/profilebackgground2.jpg"),
+                colorFilter: ColorFilter.mode(
+                  Color.fromARGB(255, 44, 128, 196),
+                  BlendMode.colorBurn,
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           // กล่องที่แสดงภาพฝ่ามือและเส้น
           Center(
@@ -63,75 +79,72 @@ class _PalmScreenSavedState extends State<PalmScreenSaved> {
                   fit: BoxFit.cover,
                 ),
               ),
-              
             ),
           ),
           // ToggleButtons สำหรับเลือกเส้น
           Positioned(
-  right: 20,
-  top: 250,
-  child: Column(
-    children: [
-      ToggleButtons(
-        direction: Axis.vertical,
-        children: const [
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text("เส้นจิตใจ"),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text("เส้นสมอง"),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text("เส้นชีวิต"),
-          ),
-        ],
-        isSelected: isSelected,
-        onPressed: (int index) {
-          setState(() {
-            for (int i = 0; i < isSelected.length; i++) {
-              isSelected[i] = i == index;
-            }
-          });
+            right: 20,
+            top: 250,
+            child: Column(
+              children: [
+                ToggleButtons(
+                  direction: Axis.vertical,
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นจิตใจ"),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นสมอง"),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นชีวิต"),
+                    ),
+                  ],
+                  isSelected: isSelected,
+                  onPressed: (int index) {
+                    setState(() {
+                      for (int i = 0; i < isSelected.length; i++) {
+                        isSelected[i] = i == index;
+                      }
+                    });
 
-          // Navigate to different pages based on the selected index
-          switch (index) {
-            case 0:
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (BuildContext context) => Savemaind(),
+                    // Navigate to different pages based on the selected index
+                    switch (index) {
+                      case 0:
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext context) => Savemaind(),
+                          ),
+                        );
+                        break;
+                      case 1:
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext context) => Savehead(),
+                          ),
+                        );
+                        break;
+                      case 2:
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (BuildContext context) => Savelife(),
+                          ),
+                        );
+                        break;
+                    }
+                  },
+                  color: Colors.black,
+                  selectedColor: Colors.red,
+                  fillColor: Colors.white,
+                  borderRadius: BorderRadius.circular(8.0),
+                  selectedBorderColor: Colors.red,
                 ),
-              );
-              break;
-            case 1:
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (BuildContext context) => Savehead(),
-                ),
-              );
-              break;
-            case 2:
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (BuildContext context) => Savelife(),
-                ),
-              );
-              break;
-          }
-        },
-        color: Colors.black,
-        selectedColor: Colors.red,
-        fillColor: Colors.white,
-        borderRadius: BorderRadius.circular(8.0),
-        selectedBorderColor: Colors.red,
-      ),
-    ],
-  ),
-),
-
-      
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -140,96 +153,94 @@ class _PalmScreenSavedState extends State<PalmScreenSaved> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-Expanded(
-  child: GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedIndex = 1;
-      });
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => HistoryPage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.history,
-          color: selectedIndex == 1 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'ประวัติ', 
-          style: TextStyle(
-            color: selectedIndex == 1 ? Colors.red : Colors.grey,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    ),
-  ),
-),
-
-Expanded(
-  child: GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedIndex = 0;
-      });
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => const MainmenuPage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.menu,
-          color: selectedIndex == 0 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'หน้าหลัก', // Text label for "Menu"
-          style: TextStyle(
-            color: selectedIndex == 0 ? Colors.red : Colors.grey,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    ),
-  ),
-),
-
             Expanded(
               child: GestureDetector(
-                 onTap: () {
+                onTap: () {
                   setState(() {
-                 selectedIndex = 2;
-                 });
-        Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => const UserprofilePage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.info,
-          color: selectedIndex == 2 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'ข้อมูล', // Text label
-          style: TextStyle(
-            color: selectedIndex == 2 ? Colors.red : Colors.grey,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    ),
-  ),
-        ),
-
+                    selectedIndex = 1;
+                  });
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (BuildContext context) => HistoryPage()));
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.history,
+                      color: selectedIndex == 1 ? Colors.red : Colors.grey,
+                      size: 30,
+                    ),
+                    const SizedBox(height: 4), // Spacing between icon and text
+                    Text(
+                      'ประวัติ',
+                      style: TextStyle(
+                        color: selectedIndex == 1 ? Colors.red : Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedIndex = 0;
+                  });
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (BuildContext context) => const MainmenuPage()));
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.menu,
+                      color: selectedIndex == 0 ? Colors.red : Colors.grey,
+                      size: 30,
+                    ),
+                    const SizedBox(height: 4), // Spacing between icon and text
+                    Text(
+                      'หน้าหลัก', // Text label for "Menu"
+                      style: TextStyle(
+                        color: selectedIndex == 0 ? Colors.red : Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    selectedIndex = 2;
+                  });
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (BuildContext context) =>
+                          const UserprofilePage()));
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info,
+                      color: selectedIndex == 2 ? Colors.red : Colors.grey,
+                      size: 30,
+                    ),
+                    const SizedBox(height: 4), // Spacing between icon and text
+                    Text(
+                      'ข้อมูล', // Text label
+                      style: TextStyle(
+                        color: selectedIndex == 2 ? Colors.red : Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

@@ -22,8 +22,28 @@ class _SaveheadState extends State<Savehead> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("แสดง"),
+        title: const Text(
+          "แสดง",
+          style: TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage("assets/profilebackgground2.jpg"),
+              colorFilter: ColorFilter.mode(
+                Color.fromARGB(255, 255, 255, 255),
+                BlendMode.colorBurn,
+              ),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+
         backgroundColor: Colors.blueAccent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -36,8 +56,20 @@ class _SaveheadState extends State<Savehead> {
       ),
       body: Stack(
         children: [
-          Container(color: Colors.blue[200]),
 
+          //from here
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("assets/profilebackgground2.jpg"),
+                colorFilter: ColorFilter.mode(
+                  Color.fromARGB(255, 44, 128, 196),
+                  BlendMode.colorBurn,
+                ),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
           Center(
             child: Container(
               width: 400,
