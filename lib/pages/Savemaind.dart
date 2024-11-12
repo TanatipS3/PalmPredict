@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-class Liferesult extends StatefulWidget {
+class Savemaind extends StatefulWidget {
   @override
-  _LiferesulState createState() => _LiferesulState();
+  _SavemaindState createState() => _SavemaindState();
 }
 
-class _LiferesulState extends State<Liferesult> {
+class _SavemaindState extends State<Savemaind> {
   int selectedIndex = 0;
-  bool isSaveButtonVisible = true;
   List<bool> isSelected = [false, false, false]; // ตัวแปรสำหรับบันทึกสถานะของปุ่ม
 
   @override
@@ -37,7 +36,7 @@ class _LiferesulState extends State<Liferesult> {
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.blue, width: 2),
                 image: DecorationImage(
-                  image: AssetImage('assets/hand1.PNG'),
+                  image: AssetImage('assets/hand3.PNG'),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -58,9 +57,7 @@ class _LiferesulState extends State<Liferesult> {
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: Text(
-                        'เส้นชีวิต\nนิทานชีวิตจะเกี่ยวข้องกับร่างกายและอารมณ์รวมทั้งจิตใจ '
-                        'อาจเป็นคนที่มีแต่คำถามได้ควรให้ความอ่อนข้อให้ผู้อื่น '
-                        'ชะตาชีวิตประสบความล้มเหลวได้ง่าย',
+                        'เส้นจิต\nจะมีการเจ็บไข้ได้ป่วย สุขภาพไม่แข็งแรง ได้รับอันตรายทางศรีษะ',
                         style: TextStyle(fontSize: 14, color: Colors.black),
                         textAlign: TextAlign.center,
                       ),
@@ -110,35 +107,6 @@ class _LiferesulState extends State<Liferesult> {
               ],
             ),
           ),
-
-          if (isSaveButtonVisible)
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(Icons.save, size: 50, color: Colors.black),
-                  onPressed: () {
-                    setState(() {
-                      isSaveButtonVisible = false;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('บันทึกแล้ว', textAlign: TextAlign.center),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.blueAccent,
-                        duration: Duration(seconds: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        margin: EdgeInsets.symmetric(horizontal: 50, vertical: 50),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: Container(

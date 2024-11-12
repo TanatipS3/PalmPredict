@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-class Liferesult extends StatefulWidget {
+class Savelife extends StatefulWidget {
   @override
-  _LiferesulState createState() => _LiferesulState();
+  _SavelifeState createState() => _SavelifeState();
 }
 
-class _LiferesulState extends State<Liferesult> {
+class _SavelifeState extends State<Savelife> {
   int selectedIndex = 0;
-  bool isSaveButtonVisible = true;
   List<bool> isSelected = [false, false, false]; // ตัวแปรสำหรับบันทึกสถานะของปุ่ม
 
   @override
@@ -110,35 +109,6 @@ class _LiferesulState extends State<Liferesult> {
               ],
             ),
           ),
-
-          if (isSaveButtonVisible)
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(Icons.save, size: 50, color: Colors.black),
-                  onPressed: () {
-                    setState(() {
-                      isSaveButtonVisible = false;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('บันทึกแล้ว', textAlign: TextAlign.center),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.blueAccent,
-                        duration: Duration(seconds: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        margin: EdgeInsets.symmetric(horizontal: 50, vertical: 50),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: Container(

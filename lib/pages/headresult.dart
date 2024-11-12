@@ -7,6 +7,8 @@ class Headresult extends StatefulWidget {
 
 class _HeadresultState extends State<Headresult> {
   int selectedIndex = 0;
+  bool isSaveButtonVisible = true;
+  List<bool> isSelected = [false, false, false]; // ตัวแปรสำหรับบันทึกสถานะของปุ่ม
 
   @override
   Widget build(BuildContext context) {
@@ -15,14 +17,19 @@ class _HeadresultState extends State<Headresult> {
         title: const Text("แสดง"),
         centerTitle: true,
         backgroundColor: Colors.blueAccent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          iconSize: 30,
+          color: Colors.white.withOpacity(0.8),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: Stack(
         children: [
-          // เปลี่ยนพื้นหลังเป็นสีฟ้า
-          Container(
-            color: Colors.blue[200],
-          ),
-          // กล่องที่แสดงภาพฝ่ามือและเส้น
+          Container(color: Colors.blue[200]),
+
           Center(
             child: Container(
               width: 400,
@@ -30,43 +37,106 @@ class _HeadresultState extends State<Headresult> {
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.blue, width: 2),
                 image: DecorationImage(
-                  image:
-                      AssetImage('assets/hand.png'), // เพิ่มรูปฝ่ามือที่ต้องการ
+                  image: AssetImage('assets/hand2.PNG'),
                   fit: BoxFit.cover,
                 ),
               ),
-              child: CustomPaint(
-                painter: PalmLinePainter(),
+              child: Stack(
+                children: [
+                  CustomPaint(
+                    painter: PalmLinePainter(),
+                    child: Container(),
+                  ),
+                  Positioned(
+                    top: 20,
+                    left: 20,
+                    right: 20,
+                    child: Container(
+                      padding: const EdgeInsets.all(8.0),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Text(
+                        'เส้นสมอง\nจะมีการเจ็บไข้ได้ป่วย สุขภาพไม่แข็งแรง ได้รับอันตรายทางศรีษะ',
+                        style: TextStyle(fontSize: 14, color: Colors.black),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          // ไอคอนบันทึก
+
+          // ToggleButtons สำหรับเลือกเส้น
           Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: IconButton(
-                icon: Icon(Icons.save, size: 50, color: Colors.black),
-                onPressed: () {
-                  // ใส่ฟังก์ชันการบันทึกที่ต้องการ
-                },
+            right: 90,
+            top: 250,
+            child: Column(
+              children: [
+                ToggleButtons(
+                  direction: Axis.vertical, // จัดปุ่มให้อยู่ในแนวตั้ง
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นจิตใจ"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นสมอง"),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text("เส้นชีวิต"),
+                    ),
+                  ],
+                  isSelected: isSelected,
+                  onPressed: (int index) {
+                    setState(() {
+                      for (int i = 0; i < isSelected.length; i++) {
+                        isSelected[i] = i == index;
+                      }
+                    });
+                  },
+                  color: Colors.black,
+                  selectedColor: Colors.red,
+                  fillColor: Colors.white,
+                  borderRadius: BorderRadius.circular(8.0),
+                  selectedBorderColor: Colors.red,
+                ),
+              ],
+            ),
+          ),
+
+          if (isSaveButtonVisible)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: IconButton(
+                  icon: Icon(Icons.save, size: 50, color: Colors.black),
+                  onPressed: () {
+                    setState(() {
+                      isSaveButtonVisible = false;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('บันทึกแล้ว', textAlign: TextAlign.center),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: Colors.blueAccent,
+                        duration: Duration(seconds: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        margin: EdgeInsets.symmetric(horizontal: 50, vertical: 50),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          // ปุ่มย้อนกลับ
-          Positioned(
-            top: 20,
-            left: 10,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              iconSize: 30,
-              color: Colors.white.withOpacity(0.8),
-              onPressed: () {
-                // เพิ่มโค้ดนำทางที่ต้องการ
-              },
-            ),
-          ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -107,23 +177,7 @@ class _HeadresultState extends State<Headresult> {
 class PalmLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paintRed = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 2;
-
-    final paintBlue = Paint()
-      ..color = Colors.blue
-      ..strokeWidth = 2;
-
-    // เส้นสีแดง
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.2),
-        Offset(size.width * 0.5, size.height * 0.3), paintRed);
-
-    // เส้นสีน้ำเงิน
-    canvas.drawLine(Offset(size.width * 0.2, size.height * 0.5),
-        Offset(size.width * 0.8, size.height * 0.5), paintBlue);
-    canvas.drawLine(Offset(size.width * 0.3, size.height * 0.6),
-        Offset(size.width * 0.7, size.height * 0.7), paintBlue);
+    // ลบหรือคอมเมนต์โค้ดการวาดเส้นสีทั้งหมดออก
   }
 
   @override
