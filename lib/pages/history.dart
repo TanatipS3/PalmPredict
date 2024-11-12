@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:plamproject/pages/Mainmenu.dart';
+import 'package:plamproject/pages/PalmScreenSaved.dart';
 
 // New Page to navigate to
 class DetailPage extends StatelessWidget {
@@ -6,7 +8,8 @@ class DetailPage extends StatelessWidget {
   final String dateTime;
   final String imagePath;
 
-  DetailPage({required this.name, required this.dateTime, required this.imagePath});
+  DetailPage(
+      {required this.name, required this.dateTime, required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +21,8 @@ class DetailPage extends StatelessWidget {
         children: [
           Image.asset(imagePath), // Show image
           SizedBox(height: 20),
-          Text(name, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(name,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           SizedBox(height: 10),
           Text(dateTime, style: TextStyle(color: Colors.grey[600])),
         ],
@@ -37,13 +41,20 @@ class HistoryItem {
   final String dateTime;
   final String imagePath;
 
-  HistoryItem({required this.name, required this.dateTime, required this.imagePath});
+  HistoryItem(
+      {required this.name, required this.dateTime, required this.imagePath});
 }
 
 class _HistoryPageState extends State<HistoryPage> {
   final List<HistoryItem> items = [
-    HistoryItem(name: 'James', dateTime: 'Jan 1, 2003 2:30', imagePath: 'assets/hand.png'),
-    HistoryItem(name: 'Sarah', dateTime: 'Feb 5, 2021 14:45', imagePath: 'assets/hand2.PNG'),
+    HistoryItem(
+        name: 'James',
+        dateTime: 'Jan 1, 2003 2:30',
+        imagePath: 'assets/hand.png'),
+    HistoryItem(
+        name: 'Sarah',
+        dateTime: 'Feb 5, 2021 14:45',
+        imagePath: 'assets/hand2.PNG'),
     // Add more items as needed
   ];
 
@@ -54,7 +65,8 @@ class _HistoryPageState extends State<HistoryPage> {
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage("assets/profilebackgground2.jpg"),
-            colorFilter: ColorFilter.mode(Color.fromARGB(96, 123, 121, 121), BlendMode.colorBurn), // Path to your background image
+            colorFilter: ColorFilter.mode(Color.fromARGB(96, 123, 121, 121),
+                BlendMode.colorBurn), // Path to your background image
             fit: BoxFit.cover, // Ensures the image covers the entire background
           ),
         ),
@@ -66,11 +78,12 @@ class _HistoryPageState extends State<HistoryPage> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.arrow_back),
-                    color: Colors.white
-                    
-                  ),
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => const MainmenuPage()));
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                      color: Colors.white),
                 ],
               ),
             ),
@@ -83,7 +96,8 @@ class _HistoryPageState extends State<HistoryPage> {
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color.fromARGB(255, 255, 255, 255)),
+                  border: Border.all(
+                      color: const Color.fromARGB(255, 255, 255, 255)),
                 ),
                 child: Row(
                   children: [
@@ -117,7 +131,8 @@ class _HistoryPageState extends State<HistoryPage> {
                     crossAxisCount: 2, // 2 columns
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: 1.0, // Adjust aspect ratio to control item height
+                    childAspectRatio:
+                        1.0, // Adjust aspect ratio to control item height
                   ),
                   itemCount: items.length, // Use the length of items list
                   itemBuilder: (context, index) {
@@ -125,14 +140,17 @@ class _HistoryPageState extends State<HistoryPage> {
 
                     return GestureDetector(
                       onTap: () {
-                        //item tap acti9on
+                        Navigator.of(context).push(MaterialPageRoute<void>(
+                            builder: (BuildContext context) =>
+                                PalmScreenSaved()));
                       },
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.4),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color.fromARGB(255, 188, 173, 173)),
+                          border: Border.all(
+                              color: const Color.fromARGB(255, 188, 173, 173)),
                         ),
                         child: Column(
                           children: [
@@ -145,7 +163,8 @@ class _HistoryPageState extends State<HistoryPage> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.asset(item.imagePath, fit: BoxFit.cover),
+                                child: Image.asset(item.imagePath,
+                                    fit: BoxFit.cover),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -153,12 +172,17 @@ class _HistoryPageState extends State<HistoryPage> {
                             // Name and Date/Time section
                             Text(
                               item.name, // Display the actual name
-                              style: const TextStyle(color: Colors.white,fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 5),
                             Text(
                               item.dateTime, // Display the actual date/time
-                              style: TextStyle(color: const Color.fromARGB(255, 255, 255, 255)),
+                              style: TextStyle(
+                                  color:
+                                      const Color.fromARGB(255, 255, 255, 255)),
                             ),
                           ],
                         ),
@@ -171,6 +195,7 @@ class _HistoryPageState extends State<HistoryPage> {
           ],
         ),
       ),
+      
     );
   }
 }

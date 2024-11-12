@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:plamproject/pages/Mainmenu.dart';
+import 'package:plamproject/pages/Savehead.dart';
 import 'package:plamproject/pages/Savelife.dart';
 import 'package:plamproject/pages/Savemaind.dart';
 import 'package:plamproject/pages/Userprofile.dart';
@@ -8,75 +9,63 @@ import 'package:plamproject/pages/history.dart';
 import 'package:plamproject/pages/liferesult.dart';
 import 'package:plamproject/pages/mindresult.dart';
 
-class Savehead extends StatefulWidget {
+class PalmScreenSaved extends StatefulWidget {
   @override
-  _SaveheadState createState() => _SaveheadState();
+  _PalmScreenSavedState createState() => _PalmScreenSavedState();
 }
 
-class _SaveheadState extends State<Savehead> {
+class _PalmScreenSavedState extends State<PalmScreenSaved> {
   int selectedIndex = 1;
-  bool isSaveButtonVisible = true; // เราจะไม่ใช้ตัวแปรนี้อีกต่อไป
-  List<bool> isSelected = [false, false, false]; // ตัวแปรสำหรับบันทึกสถานะของปุ่ม
+  List<bool> isSelected = [false, false, false]; // เพิ่มตัวแปร isSelected
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("แสดง"),
+        title: const Text(
+          "แสดง",
+          style: TextStyle(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.blueAccent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          iconSize: 30,
-          color: Colors.white.withOpacity(0.8),
-          onPressed: () {
-            
-          },
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage("assets/profilebackgground2.jpg"),
+              colorFilter: ColorFilter.mode(
+                Color.fromARGB(255, 255, 255, 255),
+                BlendMode.colorBurn,
+              ),
+              fit: BoxFit.cover,
+            ),
+          ),
         ),
       ),
       body: Stack(
         children: [
-          Container(color: Colors.blue[200]),
-
+          // Full-screen background with image, color overlay, and blend mode
+          Container(
+            color: Colors.blue[200], // สีฟ้าของพื้นหลัง
+          ),
+          // กล่องที่แสดงภาพฝ่ามือและเส้น
           Center(
             child: Container(
               width: 400,
               height: 500,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.blue, width: 2),
-                image: DecorationImage(
-                  image: AssetImage('assets/hand2.PNG'),
+                image: const DecorationImage(
+                  image: AssetImage('assets/hand.png'),
                   fit: BoxFit.cover,
                 ),
               ),
-              child: Stack(
-                children: [
-                  CustomPaint(
-                    painter: PalmLinePainter(),
-                    child: Container(),
-                  ),
-                  Positioned(
-                    top: 20,
-                    left: 20,
-                    right: 20,
-                    child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Text(
-                        'เส้นสมอง\nจะมีการเจ็บไข้ได้ป่วย สุขภาพไม่แข็งแรง ได้รับอันตรายทางศรีษะ',
-                        style: TextStyle(fontSize: 14, color: Colors.black),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              
             ),
           ),
-
           // ToggleButtons สำหรับเลือกเส้น
           Positioned(
   right: 20,
@@ -141,6 +130,8 @@ class _SaveheadState extends State<Savehead> {
     ],
   ),
 ),
+
+      
         ],
       ),
       bottomNavigationBar: Container(
@@ -243,18 +234,5 @@ Expanded(
         ),
       ),
     );
-  }
-}
-
-// CustomPainter สำหรับวาดเส้นบนฝ่ามือ
-class PalmLinePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // ลบหรือคอมเมนต์โค้ดการวาดเส้นสีทั้งหมดออก
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
   }
 }

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:plamproject/pages/Mainmenu.dart';
+import 'package:plamproject/pages/Userprofile.dart';
+import 'package:plamproject/pages/history.dart';
 
 class Headresult extends StatefulWidget {
   @override
@@ -6,7 +9,7 @@ class Headresult extends StatefulWidget {
 }
 
 class _HeadresultState extends State<Headresult> {
-  int selectedIndex = 0;
+  int selectedIndex = 1;
   bool isSaveButtonVisible = true;
   List<bool> isSelected = [false, false, false]; // ตัวแปรสำหรับบันทึกสถานะของปุ่ม
 
@@ -71,7 +74,7 @@ class _HeadresultState extends State<Headresult> {
 
           // ToggleButtons สำหรับเลือกเส้น
           Positioned(
-            right: 90,
+            right: 20,
             top: 250,
             child: Column(
               children: [
@@ -139,33 +142,102 @@ class _HeadresultState extends State<Headresult> {
             ),
         ],
       ),
-      bottomNavigationBar: Container(
-        height: 80,
-        child: BottomNavigationBar(
-          onTap: (index) {
-            setState(() {
-              selectedIndex = index;
-            });
-          },
-          currentIndex: selectedIndex,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedItemColor: Colors.red,
-          unselectedItemColor: Colors.grey,
-          iconSize: 30,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'ประวัติ',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu),
-              label: 'เมนู',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.info),
-              label: 'ข้อมูล',
-            ),
+        bottomNavigationBar: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+Expanded(
+  child: GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedIndex = 1;
+      });
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => HistoryPage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.history,
+          color: selectedIndex == 1 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'ประวัติ', 
+          style: TextStyle(
+            color: selectedIndex == 1 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+Expanded(
+  child: GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedIndex = 0;
+      });
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => const MainmenuPage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.menu,
+          color: selectedIndex == 0 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'หน้าหลัก', // Text label for "Menu"
+          style: TextStyle(
+            color: selectedIndex == 0 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+            Expanded(
+              child: GestureDetector(
+                 onTap: () {
+                  setState(() {
+                 selectedIndex = 2;
+                 });
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => const UserprofilePage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.info,
+          color: selectedIndex == 2 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'ข้อมูล', // Text label
+          style: TextStyle(
+            color: selectedIndex == 2 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+        ),
+
           ],
         ),
       ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:plamproject/pages/Mainmenu.dart';
+import 'package:plamproject/pages/history.dart';
 
 class UserprofilePage extends StatefulWidget {
   const UserprofilePage({Key? key}) : super(key: key);
@@ -8,7 +10,7 @@ class UserprofilePage extends StatefulWidget {
   State<UserprofilePage> createState() => _UserprofilePageState();
 }
 
-int selectedIndex = 0;
+int selectedIndex = 2;
 
 class _UserprofilePageState extends State<UserprofilePage> {
   @override
@@ -67,7 +69,8 @@ class _UserprofilePageState extends State<UserprofilePage> {
                     const Text(
                       'Change photo',
                       style: TextStyle(
-                        color: Color.fromARGB(255, 6, 6, 6), // Set text color to white
+                        color: Color.fromARGB(
+                            255, 6, 6, 6), // Set text color to white
                         fontSize: 20,
                       ),
                     ),
@@ -79,13 +82,13 @@ class _UserprofilePageState extends State<UserprofilePage> {
                 padding: const EdgeInsets.all(10),
                 child: Column(
                   children: [
-                   
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         color: const Color.fromARGB(255, 255, 255, 255),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color.fromARGB(255, 188, 173, 173)),
+                        border: Border.all(
+                            color: const Color.fromARGB(255, 188, 173, 173)),
                       ),
                       child: Row(
                         children: [
@@ -145,34 +148,102 @@ class _UserprofilePageState extends State<UserprofilePage> {
           ),
         ],
       ),
-      // Bottom Navigation Bar with larger icons and increased height
       bottomNavigationBar: Container(
-        height: 80,
-        child: BottomNavigationBar(
-          onTap: (index) {
-            setState(() {
-              selectedIndex = index;
-            });
-          },
-          currentIndex: selectedIndex,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedItemColor: Colors.red,
-          unselectedItemColor: Colors.grey,
-          iconSize: 30,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'ประวัติ',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu),
-              label: 'เมนู',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.info),
-              label: 'ข้อมูล',
-            ),
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+Expanded(
+  child: GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedIndex = 1;
+      });
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => HistoryPage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.history,
+          color: selectedIndex == 1 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'ประวัติ', 
+          style: TextStyle(
+            color: selectedIndex == 1 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+Expanded(
+  child: GestureDetector(
+    onTap: () {
+      setState(() {
+        selectedIndex = 0;
+      });
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => const MainmenuPage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.menu,
+          color: selectedIndex == 0 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'หน้าหลัก', // Text label for "Menu"
+          style: TextStyle(
+            color: selectedIndex == 0 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+            Expanded(
+              child: GestureDetector(
+                 onTap: () {
+                  setState(() {
+                 selectedIndex = 2;
+                 });
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => const UserprofilePage()));
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.info,
+          color: selectedIndex == 2 ? Colors.red : Colors.grey,
+          size: 30,
+        ),
+        const SizedBox(height: 4), // Spacing between icon and text
+        Text(
+          'ข้อมูล', // Text label
+          style: TextStyle(
+            color: selectedIndex == 2 ? Colors.red : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    ),
+  ),
+        ),
+
           ],
         ),
       ),
