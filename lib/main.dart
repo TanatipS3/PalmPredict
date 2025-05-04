@@ -1,28 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:plamproject/pages/Mainmenu.dart';
-import 'package:plamproject/pages/PalmScreen.dart';
-import 'package:plamproject/pages/Userprofile.dart';
-import 'package:plamproject/pages/headresult.dart';
-import 'package:plamproject/pages/Liferesult.dart';
-import 'package:plamproject/pages/Mindresult.dart';
-import 'package:plamproject/pages/Savehead.dart';
-import 'package:plamproject/pages/Savelife.dart';
-import 'package:plamproject/pages/Savemaind.dart';
-import 'package:plamproject/pages/history.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://zvnxvmdklxtpnpmcznmm.supabase.co', // 🔁 Replace with your Supabase project URL
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bnh2bWRrbHh0cG5wbWN6bm1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzOTc3NzksImV4cCI6MjA1NTk3Mzc3OX0.q0YAjTwlXUxawJpSnwwbQg16LAr3ZZcgP4mmYX0hnt8',                    // 🔁 Replace with your Supabase anon key
+  );
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'Palm Project',
       debugShowCheckedModeBanner: false,
-      title: 'Flutter project',
-      home: MainmenuPage(),
+      home: const MainmenuPage(),
     );
   }
 }

@@ -1,282 +1,253 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:plamproject/pages/Mainmenu.dart';
 import 'package:plamproject/pages/Userprofile.dart';
-import 'package:plamproject/pages/headresult.dart';
 import 'package:plamproject/pages/history.dart';
-import 'package:plamproject/pages/liferesult.dart';
-import 'package:plamproject/pages/mindresult.dart';
+import '../services/api_service.dart';
 
 class PalmScreen extends StatefulWidget {
+  final Uint8List? imageBytes;
+  final String? imageToken;
+  final String lifeLinePrediction;
+  final String headLinePrediction;
+  final String heartLinePrediction;
+
+  const PalmScreen({
+    Key? key,
+    this.imageBytes,
+    this.imageToken,
+    required this.lifeLinePrediction,
+    required this.headLinePrediction,
+    required this.heartLinePrediction,
+  }) : super(key: key);
+
   @override
-  _PalmScreenState createState() => _PalmScreenState();
+  State<PalmScreen> createState() => _PalmScreenState();
 }
 
 class _PalmScreenState extends State<PalmScreen> {
+  Uint8List? imageBytes;
   int selectedIndex = 1;
-  List<bool> isSelected = [false, false, false]; // Track selected index for ToggleButtons
-  bool isSaveButtonVisible = true; // Control the visibility of the save button
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.imageBytes != null) {
+      imageBytes = widget.imageBytes;
+    } else if (widget.imageToken != null && widget.imageToken!.isNotEmpty) {
+      loadImage();
+    }
+  }
+
+  Future<void> loadImage() async {
+    final bytes = await ApiService.fetchMaskImage(widget.imageToken!);
+    if (mounted) {
+      setState(() => imageBytes = bytes);
+    }
+  }
+
+  void saveToLocalHistory() async {
+    if (imageBytes == null) return;
+
+    final directory = await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final filename = 'palm_history_$timestamp.jpg';
+    final filepath = '${directory.path}/$filename';
+
+    final imageFile = File(filepath);
+    await imageFile.writeAsBytes(imageBytes!);
+
+    final newRecord = {
+      'timestamp': DateTime.now().toIso8601String(),
+      'image_path': filepath,
+      'life_line': widget.lifeLinePrediction,
+      'head_line': widget.headLinePrediction,
+      'heart_line': widget.heartLinePrediction,
+    };
+
+    final historyFile = File('${directory.path}/history.json');
+    List<dynamic> history = [];
+    if (await historyFile.exists()) {
+      final content = await historyFile.readAsString();
+      history = jsonDecode(content);
+
+      final duplicate = history.any((item) =>
+        item['life_line'] == newRecord['life_line'] &&
+        item['head_line'] == newRecord['head_line'] &&
+        item['heart_line'] == newRecord['heart_line']
+      );
+
+      if (duplicate) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("⚠️ ผลลัพธ์นี้ถูกบันทึกไว้แล้ว")),
+        );
+        return;
+      }
+    }
+
+    history.add(newRecord);
+    await historyFile.writeAsString(jsonEncode(history));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ บันทึกผลการทำนายเรียบร้อยแล้ว")),
+    );
+  }
+
+  void onNavTap(int index) {
+    if (index == selectedIndex) return;
+    setState(() => selectedIndex = index);
+    Widget page = const MainmenuPage();
+    if (index == 0) page = const HistoryPage();
+    if (index == 1) page = const MainmenuPage();
+    if (index == 2) page = const UserprofilePage();
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "แสดง",
-          style: TextStyle(
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage("assets/profilebackgground2.jpg"),
-              colorFilter: ColorFilter.mode(
-                Color.fromARGB(255, 255, 255, 255),
-                BlendMode.colorBurn,
-              ),
-              fit: BoxFit.cover,
+      extendBodyBehindAppBar: true,
+      resizeToAvoidBottomInset: false,
+      body: Container(
+        width: MediaQuery.of(context).size.width,
+        height: MediaQuery.of(context).size.height,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("assets/profilebackgground2.jpg"),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Color.fromARGB(255, 44, 128, 196),
+              BlendMode.colorBurn,
             ),
           ),
         ),
-      ),
-      body: Stack(
-        children: [
-          // Full-screen background with image and color overlay
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage("assets/profilebackgground2.jpg"),
-                colorFilter: ColorFilter.mode(
-                  Color.fromARGB(255, 44, 128, 196),
-                  BlendMode.colorBurn,
-                ),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          // Center container displaying hand image
-          Center(
-            child: Container(
-              width: 400,
-              height: 500,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: 2),
-                image: const DecorationImage(
-                  image: AssetImage('assets/hand.png'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-          // ToggleButtons for selecting palm lines
-          Positioned(
-            right: 20,
-            top: 250,
-            child: Column(
-              children: [
-                ToggleButtons(
-                  direction: Axis.vertical,
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นจิตใจ"),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นสมอง"),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text("เส้นชีวิต"),
-                    ),
-                  ],
-                  isSelected: isSelected,
-                  onPressed: (int index) {
-                    setState(() {
-                      for (int i = 0; i < isSelected.length; i++) {
-                        isSelected[i] = i == index;
-                      }
-                    });
-
-                    // Navigate to different pages based on the selected index
-                    switch (index) {
-                      case 0:
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (BuildContext context) => Maindresult(),
-                          ),
-                        );
-                        break;
-                      case 1:
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (BuildContext context) => Headresult(),
-                          ),
-                        );
-                        break;
-                      case 2:
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (BuildContext context) => Liferesult(),
-                          ),
-                        );
-                        break;
-                    }
-                  },
-                  color: Colors.black,
-                  selectedColor: Colors.red,
-                  fillColor: Colors.white,
-                  borderRadius: BorderRadius.circular(8.0),
-                  selectedBorderColor: Colors.red,
-                ),
-              ],
-            ),
-          ),
-          // Save button at the bottom center
-          if (isSaveButtonVisible)
-            Positioned(
-              bottom: 20,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: IconButton(
-                  icon: Icon(Icons.save, size: 50, color: Colors.white),
-                  onPressed: () {
-                    setState(() {
-                      isSaveButtonVisible = false;
-                    });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('บันทึกแล้ว', textAlign: TextAlign.center),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: Colors.blueAccent,
-                        duration: Duration(seconds: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+        child: SafeArea(
+          child: imageBytes == null
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16.0),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.85),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 10),
+                                  const Center(
+                                    child: Text(
+                                      "ภาพแสดงเส้นฝ่ามือ",
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.memory(
+                                      imageBytes!,
+                                      fit: BoxFit.contain,
+                                      width: double.infinity,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      buildLegend(color: Colors.green, label: "เส้นชีวิต"),
+                                      const SizedBox(width: 20),
+                                      buildLegend(color: Colors.blue, label: "เส้นสมอง"),
+                                      const SizedBox(width: 20),
+                                      buildLegend(color: Colors.red, label: "เส้นหัวใจ"),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    "ผลการทำนาย",
+                                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  predictionText("🧬", "เส้นชีวิต", widget.lifeLinePrediction),
+                                  const SizedBox(height: 12),
+                                  predictionText("🧠", "เส้นสมอง", widget.headLinePrediction),
+                                  const SizedBox(height: 12),
+                                  predictionText("❤️", "เส้นหัวใจ", widget.heartLinePrediction),
+                                  const SizedBox(height: 30),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: saveToLocalHistory,
+                                        icon: const Icon(Icons.save_alt),
+                                        label: const Text("บันทึกลงแอป"),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        margin: EdgeInsets.symmetric(horizontal: 50, vertical: 50),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = 1;
-                  });
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (BuildContext context) => HistoryPage()));
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.history,
-                      color: selectedIndex == 1 ? Colors.red : Colors.grey,
-                      size: 30,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ประวัติ',
-                      style: TextStyle(
-                        color: selectedIndex == 1 ? Colors.red : Colors.grey,
-                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = 0;
-                  });
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (BuildContext context) => const MainmenuPage()));
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.menu,
-                      color: selectedIndex == 0 ? Colors.red : Colors.grey,
-                      size: 30,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'หน้าหลัก',
-                      style: TextStyle(
-                        color: selectedIndex == 0 ? Colors.red : Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = 2;
-                  });
-                  Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (BuildContext context) =>
-                          const UserprofilePage()));
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info,
-                      color: selectedIndex == 2 ? Colors.red : Colors.grey,
-                      size: 30,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ข้อมูล',
-                      style: TextStyle(
-                        color: selectedIndex == 2 ? Colors.red : Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: onNavTap,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'ประวัติ'),
+          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'หน้าหลัก'),
+          BottomNavigationBarItem(icon: Icon(Icons.info), label: 'ข้อมูล'),
+        ],
+        selectedItemColor: Colors.red,
+        unselectedItemColor: Colors.grey,
       ),
     );
   }
-}
 
-// CustomPainter for drawing lines on palm
-class PalmLinePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Clear or comment out any existing line drawing code
+  static Widget buildLegend({required Color color, required String label}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 16, height: 16, color: color),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(fontSize: 14)),
+      ],
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+  static Widget predictionText(String emoji, String title, String content) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("$emoji ", style: const TextStyle(fontSize: 20)),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 16, color: Colors.black),
+              children: [
+                TextSpan(
+                  text: "$title: ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextSpan(text: content),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

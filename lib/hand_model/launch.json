@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Hand Detection - plam-2/1",
+      "type": "python",
+      "request": "launch",
+      "program": "lib/backend/app.py",  // เส้นทางที่ถูกต้องของไฟล์ script.py
+      "console": "integratedTerminal",
+      "args": [] 
+        ,
+      "envFile": ".env"  // เส้นทางของไฟล์ .env ที่เก็บ API Key
+    }
+  ]
+}

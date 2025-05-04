@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:plamproject/pages/PalmScreen.dart';
 import 'package:plamproject/pages/Userprofile.dart';
 import 'package:plamproject/pages/history.dart';
-
+import '../components/custom_button.dart';
+import '../services/api_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 class MainmenuPage extends StatefulWidget {
   const MainmenuPage({Key? key}) : super(key: key);
@@ -13,53 +17,44 @@ class MainmenuPage extends StatefulWidget {
   State<MainmenuPage> createState() => _MainmenuPageState();
 }
 
-int selectedIndex = 0;
-
 class _MainmenuPageState extends State<MainmenuPage> {
+  int selectedIndex = 1; // default is main page
   File? _image;
   final picker = ImagePicker();
 
-  Future getImage() async {
+  Future<String> saveJsonToFile(Map<String, dynamic> jsonData) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final path = '${directory.path}/palm_result_$timestamp.json';
+    final file = File(path);
+    await file.writeAsString(jsonEncode(jsonData));
+    return path;
+  }
+
+  Future<void> getImage() async {
     bool? isCamera = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.8),
+        backgroundColor: Colors.black.withOpacity(0.8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Align(
           alignment: Alignment.topLeft,
-          child: Text(
-            "เลือกแหล่งรูปภาพ",
-            style: TextStyle(color: Colors.white, fontSize: 20),
-          ),
+          child: Text("เลือกแหล่งรูปภาพ", style: TextStyle(color: Colors.white, fontSize: 20)),
         ),
         content: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey,
-              ),
-              child: const Text(
-                "ถ่ายใหม่",
-                style: TextStyle(color: Colors.white),
-              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+              child: const Text("ถ่ายใหม่", style: TextStyle(color: Colors.white)),
             ),
             const SizedBox(width: 20),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(false);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueGrey,
-              ),
-              child: const Text(
-                "มีรูปภาพอยู่แล้ว",
-                style: TextStyle(color: Colors.white),
-              ),
+              onPressed: () => Navigator.of(context).pop(false),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+              child: const Text("มีรูปภาพอยู่แล้ว", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -73,13 +68,108 @@ class _MainmenuPageState extends State<MainmenuPage> {
     );
 
     if (file != null) {
-      setState(() {
-        _image = File(file.path);
-      });
-      // Navigate to PalmScreen after selecting the image
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => PalmScreen()));
+      setState(() => _image = File(file.path));
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final palmDetected = await ApiService.detectPalm(_image!);
+      Navigator.pop(context);
+
+      if (!palmDetected) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("ไม่พบฝ่ามือ"),
+            content: const Text("ไม่สามารถตรวจพบฝ่ามือในรูปภาพ กรุณาลองใหม่"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("ตกลง")),
+            ],
+          ),
+        );
+        return;
+      }
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("ตรวจพบฝ่ามือ"),
+          content: const Text("ต้องการดำเนินการทำนายต่อหรือไม่?"),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("ยกเลิก")),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("ดำเนินการต่อ")),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final PalmResult? result = await ApiService.processPalm(_image!);
+      Navigator.pop(context);
+
+      if (result != null) {
+        final resultMap = {
+          'lifeLinePrediction': result.lifeLinePrediction,
+          'headLinePrediction': result.headLinePrediction,
+          'heartLinePrediction': result.heartLinePrediction,
+        };
+
+        try {
+          final savedPath = await saveJsonToFile(resultMap);
+          print("💾 Saved: $savedPath");
+
+          if (!mounted) return;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PalmScreen(
+                imageToken: result.imageToken,
+                lifeLinePrediction: result.lifeLinePrediction,
+                headLinePrediction: result.headLinePrediction,
+                heartLinePrediction: result.heartLinePrediction,
+              ),
+            ),
+          );
+        } catch (e) {
+          print("❌ Error saving JSON: $e");
+
+          if (!mounted) return;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PalmScreen(
+                imageToken: result.imageToken,
+                lifeLinePrediction: result.lifeLinePrediction,
+                headLinePrediction: result.headLinePrediction,
+                heartLinePrediction: result.heartLinePrediction,
+              ),
+            ),
+          );
+        }
+      }
     }
+  }
+
+  void onNavTap(int index) {
+    if (index == selectedIndex) return;
+
+    setState(() => selectedIndex = index);
+    Widget page = const MainmenuPage(); // fallback
+
+    if (index == 0) page = const HistoryPage();
+    if (index == 1) page = const MainmenuPage();
+    if (index == 2) page = const UserprofilePage();
+
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
@@ -100,62 +190,18 @@ class _MainmenuPageState extends State<MainmenuPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ElevatedButton(
-                  onPressed: () {
-                    getImage();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 35, vertical: 25),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    backgroundColor:
-                        const Color.fromARGB(255, 0, 0, 0).withOpacity(0.6),
-                    side: const BorderSide(
-                        color: Color.fromARGB(255, 226, 213, 213), width: 2),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.image_search, size: 45, color: Colors.white),
-                      SizedBox(width: 40),
-                      Text(
-                        "ถ่ายรูป หรืออัปโหลดรูป",
-                        style: TextStyle(fontSize: 24, color: Colors.white),
-                      ),
-                    ],
-                  ),
+                CustomButton(
+                  icon: Icons.image_search,
+                  text: "ถ่ายรูป หรืออัปโหลดรูป",
+                  onPressed: getImage,
                 ),
-                const SizedBox(
-                  height: 30,
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute<void>(
-                        builder: (BuildContext context) => HistoryPage()));
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 45, vertical: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    backgroundColor:
-                        const Color.fromARGB(255, 0, 0, 0).withOpacity(0.6),
-                    side: const BorderSide(
-                        color: Color.fromARGB(255, 226, 213, 213), width: 2),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.history, size: 45, color: Colors.white),
-                      SizedBox(width: 40),
-                      Text(
-                        "ประวัติผลการทำนาย",
-                        style: TextStyle(fontSize: 24, color: Colors.white),
-                      ),
-                    ],
+                const SizedBox(height: 30),
+                CustomButton(
+                  icon: Icons.history,
+                  text: "ประวัติผลการทำนาย",
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HistoryPage()),
                   ),
                 ),
               ],
@@ -163,104 +209,25 @@ class _MainmenuPageState extends State<MainmenuPage> {
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-Expanded(
-  child: GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedIndex = 0;
-      });
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => HistoryPage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.history,
-          color: selectedIndex == 0 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'ประวัติ', 
-          style: TextStyle(
-            color: selectedIndex == 0 ? Colors.red : Colors.grey,
-            fontSize: 12,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        onTap: onNavTap,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'ประวัติ',
           ),
-        ),
-      ],
-    ),
-  ),
-),
-
-Expanded(
-  child: GestureDetector(
-    onTap: () {
-      setState(() {
-        selectedIndex = 1;
-      });
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => const MainmenuPage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.menu,
-          color: selectedIndex == 1 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'หน้าหลัก', // Text label for "Menu"
-          style: TextStyle(
-            color: selectedIndex == 1 ? Colors.red : Colors.grey,
-            fontSize: 12,
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu),
+            label: 'หน้าหลัก',
           ),
-        ),
-      ],
-    ),
-  ),
-),
-
-            Expanded(
-              child: GestureDetector(
-                 onTap: () {
-                  setState(() {
-                 selectedIndex = 2;
-                 });
-        Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => const UserprofilePage()));
-    },
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.info,
-          color: selectedIndex == 2 ? Colors.red : Colors.grey,
-          size: 30,
-        ),
-        const SizedBox(height: 4), // Spacing between icon and text
-        Text(
-          'ข้อมูล', // Text label
-          style: TextStyle(
-            color: selectedIndex == 2 ? Colors.red : Colors.grey,
-            fontSize: 12,
+          BottomNavigationBarItem(
+            icon: Icon(Icons.info),
+            label: 'ข้อมูล',
           ),
-        ),
-      ],
-    ),
-  ),
-        ),
-
-          ],
-        ),
+        ],
+        selectedItemColor: Colors.red,
+        unselectedItemColor: Colors.grey,
       ),
     );
   }
