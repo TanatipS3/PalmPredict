@@ -4,8 +4,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
+/// ---------- Models ----------
 class PalmResult {
-  final String imageToken;
+  final String imageToken;            // may be empty if backend didn't return it
   final String lifeLinePrediction;
   final String headLinePrediction;
   final String heartLinePrediction;
@@ -28,137 +29,140 @@ class PalmResult {
 class ApiException implements Exception {
   final String message;
   final int? statusCode;
-
   const ApiException(this.message, {this.statusCode});
-
   @override
   String toString() =>
       'ApiException: $message${statusCode != null ? ' (Status: $statusCode)' : ''}';
 }
 
+/// ---------- Service ----------
 class ApiService {
-  static const String baseUrl = "http://192.168.1.29:5000";
-  static const Duration defaultTimeout = Duration(seconds: 2400);
-  static const String _palmDetectionEndpoint = "/detect-hand";
-  static const String _segmentLinesEndpoint = "/segment-lines";
-  static const String _getMaskImageEndpoint = "/get-mask-image";
-  static const String _uploadUserProfileEndpoint = "/upload-user-profile";
+  /// Set at build time:
+  /// flutter run --dart-define=API_BASE_URL=https://<api-id>.execute-api.<region>.amazonaws.com
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:5000', // local fallback if needed
+  );
 
-  /// Detect if palm is present in the image
+  static const Duration defaultTimeout = Duration(seconds: 60);
+
+  // ---- paths you asked to keep ----
+  static const _healthPath = '/health';
+  static const _detectPath = '/detect-hand';
+  static const _segmentPath = '/segment-lines';
+  static const _maskPath = '/get-mask-image';
+  static const _profilePath = '/upload-user-profile';
+
+  /// Quick ping
+  static Future<bool> health() async {
+    final resp = await http
+        .get(Uri.parse('$baseUrl$_healthPath'))
+        .timeout(const Duration(seconds: 10));
+    return resp.statusCode == 200;
+  }
+
+  /// 1) Detect palm (multipart/form-data, field name 'image')
   static Future<bool> detectPalm(File imageFile) async {
     try {
-      final uri = Uri.parse("$baseUrl$_palmDetectionEndpoint");
-      final request = http.MultipartRequest('POST', uri)
+      final uri = Uri.parse('$baseUrl$_detectPath');
+      final req = http.MultipartRequest('POST', uri)
         ..files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-      final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 600));
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data["palm_detected"] == true;
-      }
-      return false;
+      final streamed = await req.send().timeout(defaultTimeout);
+      final resp = await http.Response.fromStream(streamed);
+      if (resp.statusCode != 200) return false;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      return data['palm_detected'] == true;
+    } on TimeoutException {
+      throw const ApiException('Detect timeout');
+    } on SocketException {
+      throw const ApiException('Network unavailable');
     } catch (e) {
-      print("❌ Error in detectPalm: $e");
-      return false;
+      if (e is ApiException) rethrow;
+      throw ApiException('Detect failed: $e');
     }
   }
 
-  /// Send palm image to server and get predictions + token
-  static Future<PalmResult?> processPalm(File imageFile) async {
+  /// 2) Send raw bytes to /segment-lines (Content-Type: application/octet-stream)
+  static Future<PalmResult> processPalm(File imageFile) async {
     try {
-      final uri = Uri.parse("$baseUrl$_segmentLinesEndpoint");
       final bytes = await imageFile.readAsBytes();
+      final resp = await http
+          .post(
+            Uri.parse('$baseUrl$_segmentPath'),
+            headers: {'Content-Type': 'application/octet-stream'},
+            body: bytes,
+          )
+          .timeout(defaultTimeout);
 
-      final request = http.Request('POST', uri)
-        ..headers['Content-Type'] = 'application/octet-stream'
-        ..bodyBytes = bytes;
-
-      final streamedResponse = await request.send().timeout(defaultTimeout);
-      final responseBody = await streamedResponse.stream.bytesToString();
-
-      if (streamedResponse.statusCode == 200) {
-        final data = jsonDecode(responseBody);
-
-        if (data.containsKey('life_line') &&
-            data.containsKey('head_line') &&
-            data.containsKey('heart_line') &&
-            data.containsKey('image_token')) {
-          return PalmResult(
-            imageToken: data['image_token'],
-            lifeLinePrediction: data["life_line"] ?? "ไม่พบข้อมูล",
-            headLinePrediction: data["head_line"] ?? "ไม่พบข้อมูล",
-            heartLinePrediction: data["heart_line"] ?? "ไม่พบข้อมูล",
-          );
-        } else {
-          throw ApiException("Missing required fields: $data");
-        }
-      } else {
-        throw ApiException("Server error", statusCode: streamedResponse.statusCode);
+      if (resp.statusCode != 200) {
+        throw ApiException('Server error: ${resp.statusCode} ${resp.body}',
+            statusCode: resp.statusCode);
       }
+
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      // backend returns keys: life_line, head_line, heart_line, image_token
+      return PalmResult(
+        imageToken: (data['image_token'] ?? '').toString(),
+        lifeLinePrediction: (data['life_line'] ?? 'ไม่พบข้อมูล').toString(),
+        headLinePrediction: (data['head_line'] ?? 'ไม่พบข้อมูล').toString(),
+        heartLinePrediction: (data['heart_line'] ?? 'ไม่พบข้อมูล').toString(),
+      );
+    } on TimeoutException {
+      throw const ApiException('Server took too long (timeout)');
+    } on SocketException {
+      throw const ApiException('Network unavailable');
     } catch (e) {
-      print("❌ Error in processPalm: $e");
-      return null;
+      if (e is ApiException) rethrow;
+      throw ApiException('Unexpected error: $e');
     }
   }
 
-  /// Fetch the debug mask image from token
+  /// 3) Get the masked/overlay image by token (bytes for Image.memory)
   static Future<Uint8List?> fetchMaskImage(String token) async {
-    try {
-      final uri = Uri.parse("$baseUrl$_getMaskImageEndpoint?token=$token");
-      final response = await http.get(uri).timeout(const Duration(seconds: 20));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data.containsKey('image_base64')) {
-          return base64Decode(data["image_base64"]);
-        }
-      } else {
-        print("❌ fetchMaskImage failed: ${response.statusCode}");
-      }
-    } catch (e) {
-      print("❌ Error in fetchMaskImage: $e");
-    }
-    return null;
-  }
-
-  /// Upload or update user profile to Supabase
-  static Future<bool> uploadUserProfile({
-  required String name,
-  required String passcode,
-  File? imageFile,
-}) async {
-  try {
-    final uri = Uri.parse("$baseUrl/upload-user-profile");
-    final Map<String, dynamic> body = {
-      'username': name,
-      'passcode': passcode,
-      'last_updated': DateTime.now().toIso8601String(),
-    };
-
-    if (imageFile != null) {
-      final bytes = await imageFile.readAsBytes();
-      body['profile_image'] = base64Encode(bytes);
-    }
-
-    final response = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json', // ✅ make sure this is set!
-      },
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 200) {
-      return true;
-    } else {
-      print("❌ Upload failed: ${response.statusCode} - ${response.body}");
-      return false;
-    }
-  } catch (e) {
-    print("❌ Error in uploadUserProfile: $e");
-    return false;
-  }
+  final uri = Uri.parse("$baseUrl/get-mask-image?token=$token");
+  final resp = await http.get(uri).timeout(defaultTimeout);
+  if (resp.statusCode == 200) return resp.bodyBytes;
+  throw ApiException('fetchMaskImage failed: ${resp.statusCode}');
 }
 
+
+  /// 4) Upload/Update user profile in Supabase (JSON)
+  static Future<bool> uploadUserProfile({
+    required String name,
+    required String passcode,
+    File? imageFile,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$_profilePath');
+
+      String? b64;
+      if (imageFile != null) {
+        final bytes = await imageFile.readAsBytes();
+        b64 = base64Encode(bytes);
+      }
+
+      final body = jsonEncode({
+        'name': name,
+        'passcode': passcode,
+        if (b64 != null) 'image_base64': b64,
+        'last_updated': DateTime.now().toUtc().toIso8601String(),
+      });
+
+      final resp = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          )
+          .timeout(defaultTimeout);
+
+      if (resp.statusCode == 200) return true;
+      throw ApiException('Upload failed: ${resp.statusCode} ${resp.body}',
+          statusCode: resp.statusCode);
+    } on TimeoutException {
+      throw const ApiException('Upload timeout');
+    } on SocketException {
+      throw const ApiException('Network unavailable');
+    }
+  }
 }

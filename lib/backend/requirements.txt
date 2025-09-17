@@ -1,0 +1,13 @@
+flask
+flask-cors
+serverless-wsgi
+werkzeug
+numpy
+Pillow
+requests
+python-dotenv
+supabase
+# Uncomment if you need OpenCV
+opencv-python-headless
+# Uncomment if you use AWS S3
+# boto3
