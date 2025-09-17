@@ -91,7 +91,8 @@ class _UserprofilePageState extends State<UserprofilePage> {
   File? downloadedFile;
 
   if (imageUrl != null && imageUrl.isNotEmpty) {
-  final response = await HttpClient().getUrl(Uri.parse(imageUrl));
+  final response = await HttpClient().getUrl(Uri.parse(imageUrl)).timeout(Duration(seconds: 30), onTimeout: () {
+                            throw Exception("Server timeout");});
   final bytes = await (await response.close()).fold<BytesBuilder>(
     BytesBuilder(),
     (builder, data) => builder..add(data),
@@ -156,7 +157,8 @@ class _UserprofilePageState extends State<UserprofilePage> {
 
               if (imgUrl != null && imgUrl is String) {
                 try {
-                  final response = await HttpClient().getUrl(Uri.parse(imgUrl));
+                  final response = await HttpClient().getUrl(Uri.parse(imgUrl)).timeout(Duration(seconds: 30), onTimeout: () {
+                            throw Exception("Server timeout");});
                   final bytes = await response.close().then((res) => res.fold<List<int>>([], (b, d) => b..addAll(d)));
                   final filename = 'downloaded_${DateTime.now().millisecondsSinceEpoch}.jpg';
                   final file = File('${dir.path}/$filename');

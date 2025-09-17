@@ -9,8 +9,8 @@ import 'package:plamproject/pages/history.dart';
 import '../services/api_service.dart';
 
 class PalmScreen extends StatefulWidget {
-  final Uint8List? imageBytes;
-  final String? imageToken;
+  final Uint8List? imageBytes;        // pass this from Mainmenu if you have it
+  final String? imageToken;           // may be empty in demo backend
   final String lifeLinePrediction;
   final String headLinePrediction;
   final String heartLinePrediction;
@@ -35,52 +35,80 @@ class _PalmScreenState extends State<PalmScreen> {
   @override
   void initState() {
     super.initState();
+
+    // If bytes were passed in, use them immediately.
     if (widget.imageBytes != null) {
       imageBytes = widget.imageBytes;
-    } else if (widget.imageToken != null && widget.imageToken!.isNotEmpty) {
-      loadImage();
+      return;
+    }
+
+    // If we have a non-empty token AND fetchMaskImage is implemented,
+    // try to load the image asynchronously. Otherwise just show predictions.
+    if ((widget.imageToken ?? '').isNotEmpty) {
+      loadImageFromToken(widget.imageToken!);
     }
   }
 
-  Future<void> loadImage() async {
-    final bytes = await ApiService.fetchMaskImage(widget.imageToken!);
-    if (mounted) {
+  Future<void> loadImageFromToken(String token) async {
+  try {
+    // 1) Try fetch from API
+    final bytes = await ApiService.fetchMaskImage(token);
+    if (bytes != null && mounted) {
       setState(() => imageBytes = bytes);
+      return;
     }
-  }
 
-  void saveToLocalHistory() async {
-    if (imageBytes == null) return;
+    // 2) Fallback to local file
+    final dir = await getApplicationDocumentsDirectory();
+    final fallbackPath = '${dir.path}/masked_$token.jpg';
+    final file = File(fallbackPath);
+
+    if (await file.exists()) {
+      final localBytes = await file.readAsBytes();  // <-- await outside setState
+      if (mounted) {
+        setState(() => imageBytes = localBytes);    // <-- no await inside setState
+      }
+    } else {
+      debugPrint('❌ Local fallback file not found: $fallbackPath');
+    }
+  } catch (e) {
+    // Show predictions even if no image; just log the error
+    debugPrint('loadImageFromToken error: $e');
+  }
+}
+
+
+  Future<void> saveToLocalHistory() async {
+    // Save image only if we have it; predictions are always available
+    String? savedImagePath;
+    if (imageBytes != null) {
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filepath = '${directory.path}/palm_history_$timestamp.jpg';
+      await File(filepath).writeAsBytes(imageBytes!);
+      savedImagePath = filepath;
+    }
 
     final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filename = 'palm_history_$timestamp.jpg';
-    final filepath = '${directory.path}/$filename';
-
-    final imageFile = File(filepath);
-    await imageFile.writeAsBytes(imageBytes!);
+    final historyFile = File('${directory.path}/history.json');
 
     final newRecord = {
       'timestamp': DateTime.now().toIso8601String(),
-      'image_path': filepath,
+      'image_path': savedImagePath, // may be null if no image
       'life_line': widget.lifeLinePrediction,
       'head_line': widget.headLinePrediction,
       'heart_line': widget.heartLinePrediction,
     };
 
-    final historyFile = File('${directory.path}/history.json');
     List<dynamic> history = [];
     if (await historyFile.exists()) {
       final content = await historyFile.readAsString();
       history = jsonDecode(content);
-
       final duplicate = history.any((item) =>
-        item['life_line'] == newRecord['life_line'] &&
-        item['head_line'] == newRecord['head_line'] &&
-        item['heart_line'] == newRecord['heart_line']
-      );
-
-      if (duplicate) {
+          item['life_line'] == newRecord['life_line'] &&
+          item['head_line'] == newRecord['head_line'] &&
+          item['heart_line'] == newRecord['heart_line']);
+      if (duplicate && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("⚠️ ผลลัพธ์นี้ถูกบันทึกไว้แล้ว")),
         );
@@ -90,10 +118,11 @@ class _PalmScreenState extends State<PalmScreen> {
 
     history.add(newRecord);
     await historyFile.writeAsString(jsonEncode(history));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ บันทึกผลการทำนายเรียบร้อยแล้ว")),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ บันทึกผลการทำนายเรียบร้อยแล้ว")),
+      );
+    }
   }
 
   void onNavTap(int index) {
@@ -108,6 +137,8 @@ class _PalmScreenState extends State<PalmScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = imageBytes != null;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       resizeToAvoidBottomInset: false,
@@ -125,82 +156,91 @@ class _PalmScreenState extends State<PalmScreen> {
           ),
         ),
         child: SafeArea(
-          child: imageBytes == null
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.85),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(16.0),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.85),
-                                borderRadius: BorderRadius.circular(16),
+                            if (hasImage) ...[
+                              const SizedBox(height: 10),
+                              const Center(
+                                child: Text(
+                                  "ภาพแสดงเส้นฝ่ามือ",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
                               ),
-                              margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  imageBytes!,
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const SizedBox(height: 10),
-                                  const Center(
-                                    child: Text(
-                                      "ภาพแสดงเส้นฝ่ามือ",
-                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.memory(
-                                      imageBytes!,
-                                      fit: BoxFit.contain,
-                                      width: double.infinity,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      buildLegend(color: Colors.green, label: "เส้นชีวิต"),
-                                      const SizedBox(width: 20),
-                                      buildLegend(color: Colors.blue, label: "เส้นสมอง"),
-                                      const SizedBox(width: 20),
-                                      buildLegend(color: Colors.red, label: "เส้นหัวใจ"),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const Text(
-                                    "ผลการทำนาย",
-                                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  predictionText("🧬", "เส้นชีวิต", widget.lifeLinePrediction),
-                                  const SizedBox(height: 12),
-                                  predictionText("🧠", "เส้นสมอง", widget.headLinePrediction),
-                                  const SizedBox(height: 12),
-                                  predictionText("❤️", "เส้นหัวใจ", widget.heartLinePrediction),
-                                  const SizedBox(height: 30),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      ElevatedButton.icon(
-                                        onPressed: saveToLocalHistory,
-                                        icon: const Icon(Icons.save_alt),
-                                        label: const Text("บันทึกลงแอป"),
-                                      ),
-                                    ],
-                                  ),
+                                  buildLegend(
+                                      color: Colors.green, label: "เส้นชีวิต"),
+                                  const SizedBox(width: 20),
+                                  buildLegend(
+                                      color: Colors.blue, label: "เส้นสมอง"),
+                                  const SizedBox(width: 20),
+                                  buildLegend(
+                                      color: Colors.red, label: "เส้นหัวใจ"),
                                 ],
                               ),
+                              const SizedBox(height: 20),
+                            ],
+                            const Text(
+                              "ผลการทำนาย",
+                              style: TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 16),
+                            predictionText(
+                                "🧬", "เส้นชีวิต", widget.lifeLinePrediction),
+                            const SizedBox(height: 12),
+                            predictionText(
+                                "🧠", "เส้นสมอง", widget.headLinePrediction),
+                            const SizedBox(height: 12),
+                            predictionText(
+                                "❤️", "เส้นหัวใจ", widget.heartLinePrediction),
+                            const SizedBox(height: 30),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: saveToLocalHistory,
+                                  icon: const Icon(Icons.save_alt),
+                                  label: const Text("บันทึกลงแอป"),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
