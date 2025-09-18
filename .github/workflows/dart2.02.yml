@@ -43,12 +43,30 @@ jobs:
             echo "🔐 Keystore secret found — configuring release signing"
             mkdir -p android/app
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-            cat > android/key.properties << 'EOF'
-          storePassword=${ANDROID_KEYSTORE_PASSWORD}
-          keyPassword=${ANDROID_KEY_PASSWORD}
-          keyAlias=${ANDROID_KEY_ALIAS}
-          storeFile=./app/keystore.jks
-          EOF
+            
+            # Debug: Check if environment variables are set
+            echo "🔍 Debug: Checking environment variables..."
+            echo "ANDROID_KEY_ALIAS is set: $([ -n "$ANDROID_KEY_ALIAS" ] && echo 'YES' || echo 'NO')"
+            echo "ANDROID_KEYSTORE_PASSWORD is set: $([ -n "$ANDROID_KEYSTORE_PASSWORD" ] && echo 'YES' || echo 'NO')"
+            echo "ANDROID_KEY_PASSWORD is set: $([ -n "$ANDROID_KEY_PASSWORD" ] && echo 'YES' || echo 'NO')"
+            
+            # Create key.properties file with actual values
+            echo "storePassword=${ANDROID_KEYSTORE_PASSWORD}" > android/key.properties
+            echo "keyPassword=${ANDROID_KEY_PASSWORD}" >> android/key.properties
+            echo "keyAlias=${ANDROID_KEY_ALIAS}" >> android/key.properties
+            echo "storeFile=./app/keystore.jks" >> android/key.properties
+            
+            echo "✅ Created key.properties file"
+            echo "📋 Contents of key.properties (passwords hidden):"
+            sed 's/Password=.*/Password=***HIDDEN***/g' android/key.properties
+            
+            # Verify keystore file exists and check its info
+            echo "🔍 Keystore file check:"
+            ls -la android/app/keystore.jks
+            
+            # Test keystore integrity (this will fail if password is wrong, but that's expected for debugging)
+            echo "🔍 Testing keystore access (this may show an error, that's normal for debugging):"
+            keytool -list -keystore android/app/keystore.jks -storepass "${ANDROID_KEYSTORE_PASSWORD}" -alias "${ANDROID_KEY_ALIAS}" -v || echo "Keystore test failed - check your secrets"
           else
             echo "ℹ️ No keystore provided. Will build an UNSIGNED release."
           fi
