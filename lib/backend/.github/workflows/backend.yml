@@ -1,0 +1,52 @@
+name: Backend CI/CD
+
+on:
+  push:
+    paths:
+      - 'lib/backend/**'
+      - '.github/workflows/backend.yml'
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write   # OIDC
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-oidc-deploy
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPO: ${{ secrets.AWS_ECR_REPO }}
+        run: |
+          cd lib/backend
+          # pick a unique tag (short sha)
+          GIT_SHA=$(git rev-parse --short HEAD)
+          IMAGE_TAG="gh-${GIT_SHA}"
+          docker build --platform linux/amd64 -t $ECR_REPO:$IMAGE_TAG .
+          docker tag $ECR_REPO:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+          echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Update Lambda to new image
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}" \
+            --image-uri "${IMAGE_URI}"
+          aws lambda wait function-updated --function-name "${{ secrets.LAMBDA_FUNCTION_NAME }}"
