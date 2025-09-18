@@ -1,0 +1,43 @@
+name: Setup AWS OIDC Provider for GitHub Actions
+
+on:
+workflow_dispatch:
+
+permissions:
+id-token: write
+contents: read
+
+jobs:
+setup-oidc:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+
+  - name: Configure AWS Credentials
+    uses: aws-actions/configure-aws-credentials@v4
+    with:
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}
+
+  - name: Create OIDC Provider if it doesn't exist
+    id: create-provider
+    run: |
+      echo "Checking for existing OIDC provider..."
+      set +e
+      aws iam get-open-id-connect-provider --open-id-connect-provider-arn "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:oidc-provider/token.actions.githubusercontent.com" > /dev/null 2>&1
+      PROVIDER_EXISTS=$?
+      set -e
+
+      if [ $PROVIDER_EXISTS -ne 0 ]; then
+        echo "OIDC provider not found. Creating a new one..."
+        aws iam create-open-id-connect-provider \
+          --url https://token.actions.githubusercontent.com \
+          --thumbprint-list "6938fd48d0869a85e49221147726b4823863459c" \
+          --client-id-list "sts.amazonaws.com"
+        echo "OIDC provider created successfully."
+      else
+        echo "OIDC provider already exists. Skipping creation."
+      fi
