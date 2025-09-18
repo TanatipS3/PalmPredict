@@ -27,41 +27,40 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0' # match your local
+          flutter-version: '3.24.0'   # match your local
 
       - name: Pub get
         run: flutter pub get
 
-      # Decode keystore only if secret is set
-      - name: Decode keystore (conditional)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Decode keystore IF secret is present (no YAML "if:" — we check in shell)
+      - name: Prepare signing (conditional in shell)
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          mkdir -p android/app
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-
-      # Write key.properties only if secret is set
-      - name: Write key.properties (conditional)
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
-        env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          mkdir -p android
-          cat > android/key.properties <<EOF
-          storePassword=${ANDROID_KEYSTORE_PASSWORD}
-          keyPassword=${ANDROID_KEY_PASSWORD}
-          keyAlias=${ANDROID_KEY_ALIAS}
-          storeFile=./app/keystore.jks
-          EOF
+          set -e
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "🔐 Keystore secret found — configuring release signing"
+            mkdir -p android/app
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+
+            cat > android/key.properties <<EOF
+            storePassword=${ANDROID_KEYSTORE_PASSWORD}
+            keyPassword=${ANDROID_KEY_PASSWORD}
+            keyAlias=${ANDROID_KEY_ALIAS}
+            storeFile=./app/keystore.jks
+            EOF
+          else
+            echo "ℹ️ No keystore provided. Will build an UNSIGNED release."
+          fi
 
       - name: Build release APK
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
+          flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
