@@ -1,13 +1,20 @@
-flask
-flask-cors
-serverless-wsgi
-werkzeug
-numpy
-Pillow
-requests
-python-dotenv
-supabase
-# Uncomment if you need OpenCV
-opencv-python-headless
-# Uncomment if you use AWS S3
-# boto3
+# Web framework
+Flask==3.0.3
+Werkzeug==3.0.4
+
+# Env vars
+python-dotenv==1.0.1
+
+# HTTP calls
+requests==2.32.3
+
+# Image + CV stack (headless builds for servers/Lambda)
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+Pillow==10.4.0
+
+# Supabase Python client (v2)
+supabase==2.4.1
+
+# Flask↔AWS Lambda adapter (only if your handler uses awsgi)
+awsgi==2.2.0

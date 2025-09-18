@@ -1,5 +1,4 @@
 # Backend Starter (Flask on AWS Lambda)
-
 ## Local test
 ```bash
 python3 -m venv .venv && source .venv/bin/activate

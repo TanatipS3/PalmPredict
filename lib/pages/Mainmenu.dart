@@ -1,5 +1,7 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,7 +10,8 @@ import 'package:plamproject/pages/PalmScreen.dart';
 import 'package:plamproject/pages/Userprofile.dart';
 import 'package:plamproject/pages/history.dart';
 import '../components/custom_button.dart';
-import '../services/api_service.dart'; // must expose PalmResult + processPalm(File)
+import '../services/api_service.dart';
+import '../services/image_utils.dart';
 
 class MainmenuPage extends StatefulWidget {
   const MainmenuPage({Key? key}) : super(key: key);
@@ -18,11 +21,10 @@ class MainmenuPage extends StatefulWidget {
 }
 
 class _MainmenuPageState extends State<MainmenuPage> {
-  int selectedIndex = 1; // default is main page
-  File? _image;
+  int selectedIndex = 1;
   final picker = ImagePicker();
 
-  /// ---------- Small helpers ----------
+  // ---------- small helpers ----------
   void showLoader(BuildContext context) {
     showDialog(
       context: context,
@@ -37,18 +39,31 @@ class _MainmenuPageState extends State<MainmenuPage> {
     if (nav.canPop()) nav.pop();
   }
 
+  Future<void> _showPalmNotFoundDialog() async {
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("ไม่พบฝ่ามือ"),
+        content: const Text("ไม่สามารถตรวจพบฝ่ามือในรูปภาพ กรุณาลองใหม่"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("ตกลง")),
+        ],
+      ),
+    );
+  }
+
   Future<String> saveJsonToFile(Map<String, dynamic> jsonData) async {
     final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final path = '${directory.path}/palm_result_$timestamp.json';
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final path = '${directory.path}/palm_result_$ts.json';
     final file = File(path);
     await file.writeAsString(jsonEncode(jsonData));
     return path;
   }
 
-  /// ---------- Main flow ----------
+  // ---------- main flow ----------
   Future<void> getImage() async {
-    // 1) Choose source
+    // 1) pick source
     final bool? isCamera = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -72,8 +87,7 @@ class _MainmenuPageState extends State<MainmenuPage> {
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(false),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
-              child:
-                  const Text("มีรูปภาพอยู่แล้ว", style: TextStyle(color: Colors.white)),
+              child: const Text("มีรูปภาพอยู่แล้ว", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -81,46 +95,48 @@ class _MainmenuPageState extends State<MainmenuPage> {
     );
     if (isCamera == null) return;
 
-    // 2) Pick image
+    // 2) pick file
     final XFile? picked = await picker.pickImage(
       source: isCamera ? ImageSource.camera : ImageSource.gallery,
     );
     if (picked == null) return;
 
-    _image = File(picked.path); // keep local reference (optional preview/use)
+    // original & downscaled file for upload
+    final File original = File(picked.path);
+    final File uploadFile =
+        await downscaleForUpload(original, maxSide: 1280, quality: 85);
 
-    // 3) Show loader ONCE
+    PalmResult? result;
+
+    // 3) show loader & call backend
     showLoader(context);
-
-    PalmResult result;
     try {
-      // 4) Call backend ONCE
-      result = await ApiService.processPalm(_image!);
-
-      // 5) Optional basic “detected?” check
-      final palmDetected = result.lifeLinePrediction.isNotEmpty ||
-          result.headLinePrediction.isNotEmpty ||
-          result.heartLinePrediction.isNotEmpty;
-
-      if (!palmDetected) {
-        if (mounted) hideLoader(context);
+      // 3.1) quick palm detection
+      final hasPalm = await ApiService.detectHand(uploadFile);
+      if (!hasPalm) {
+        hideLoader(context);
         if (!mounted) return;
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("ไม่พบฝ่ามือ"),
-            content: const Text("ไม่สามารถตรวจพบฝ่ามือในรูปภาพ กรุณาลองใหม่"),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("ตกลง")),
-            ],
-          ),
-        );
+        await _showPalmNotFoundDialog();
         return;
       }
 
-      // 6) Save JSON (optional)
+      // 3.2) segment lines
+      result = await ApiService.processPalm(uploadFile);
+
+      // 3.3) if no lines at all, also treat as "no palm"
+      final noLines =
+          (result.lifeLinePrediction.isEmpty || result.lifeLinePrediction == 'ไม่พบข้อมูล') &&
+          (result.headLinePrediction.isEmpty || result.headLinePrediction == 'ไม่พบข้อมูล') &&
+          (result.heartLinePrediction.isEmpty || result.heartLinePrediction == 'ไม่พบข้อมูล');
+
+      if (noLines) {
+        hideLoader(context);
+        if (!mounted) return;
+        await _showPalmNotFoundDialog();
+        return;
+      }
+
+      // optional: save JSON summary locally
       final resultMap = {
         'lifeLinePrediction': result.lifeLinePrediction,
         'headLinePrediction': result.headLinePrediction,
@@ -135,8 +151,7 @@ class _MainmenuPageState extends State<MainmenuPage> {
         print("❌ Error saving JSON: $e");
       }
     } catch (e) {
-      // Any error from API
-      if (mounted) hideLoader(context);
+      hideLoader(context);
       if (!mounted) return;
       await showDialog(
         context: context,
@@ -144,43 +159,50 @@ class _MainmenuPageState extends State<MainmenuPage> {
           title: const Text("เกิดข้อผิดพลาด"),
           content: Text(e.toString()),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("ตกลง")),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("ตกลง")),
           ],
         ),
       );
       return;
     } finally {
-      // 7) Always close loader
-      if (mounted) hideLoader(context);
+      // keep loader open if we're about to navigate;
+      // otherwise it's already closed in early returns.
     }
 
-    // 8) Navigate after loader is closed
-    if (!mounted || result == null) return;
-    final bytes = await ApiService.fetchMaskImage(result.imageToken) ?? await _image!.readAsBytes();
+    // 4) navigate to result
+    if (!mounted || result == null) {
+      hideLoader(context);
+      return;
+    }
+    final r = result;
 
+    // try to fetch mask image; if not, fall back to uploaded bytes
+    Uint8List bytes =
+        (r.imageToken.isNotEmpty ? await ApiService.fetchMaskImage(r.imageToken) : null) ??
+        await uploadFile.readAsBytes();
+
+    hideLoader(context);
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PalmScreen(
           imageBytes: bytes,
-          imageToken: result.imageToken,
-          lifeLinePrediction: result.lifeLinePrediction,
-          headLinePrediction: result.headLinePrediction,
-          heartLinePrediction: result.heartLinePrediction,
+          imageToken: r.imageToken,
+          lifeLinePrediction: r.lifeLinePrediction,
+          headLinePrediction: r.headLinePrediction,
+          heartLinePrediction: r.heartLinePrediction,
         ),
       ),
     );
   }
 
-  /// ---------- Bottom nav ----------
+  // ---------- bottom nav ----------
   void onNavTap(int index) {
     if (index == selectedIndex) return;
 
     setState(() => selectedIndex = index);
-    Widget page = const MainmenuPage(); // fallback
-
+    Widget page = const MainmenuPage();
     if (index == 0) page = const HistoryPage();
     if (index == 1) page = const MainmenuPage();
     if (index == 2) page = const UserprofilePage();
@@ -188,7 +210,7 @@ class _MainmenuPageState extends State<MainmenuPage> {
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
-  /// ---------- UI ----------
+  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -218,8 +240,7 @@ class _MainmenuPageState extends State<MainmenuPage> {
                   text: "ประวัติผลการทำนาย",
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const HistoryPage()),
+                    MaterialPageRoute(builder: (context) => const HistoryPage()),
                   ),
                 ),
               ],
@@ -231,18 +252,9 @@ class _MainmenuPageState extends State<MainmenuPage> {
         currentIndex: selectedIndex,
         onTap: onNavTap,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'ประวัติ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu),
-            label: 'หน้าหลัก',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'ข้อมูล',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'ประวัติ'),
+          BottomNavigationBarItem(icon: Icon(Icons.menu), label: 'หน้าหลัก'),
+          BottomNavigationBarItem(icon: Icon(Icons.info), label: 'ข้อมูล'),
         ],
         selectedItemColor: Colors.red,
         unselectedItemColor: Colors.grey,
