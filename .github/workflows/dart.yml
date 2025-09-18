@@ -14,14 +14,6 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
 
-    # Make secrets available as environment variables for all steps
-    env:
-      API_BASE_URL: ${{ secrets.API_BASE_URL }}
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,40 +27,39 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'   # match your local version
+          flutter-version: '3.24.0'
 
-      - name: Flutter pub get
+      - name: Pub get
         run: flutter pub get
 
-      # Decode keystore only if the secret is present
-      - name: Decode keystore (if present)
-        shell: bash
+      # No YAML "if:" — we do the conditional logic inside the shell
+      - name: Prepare signing (conditional in shell)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          set -e
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "Decoding release keystore..."
+            echo "🔐 Keystore secret found — configuring release signing"
             mkdir -p android/app
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-          else
-            echo "No keystore provided; will build UNSIGNED APK."
-          fi
-
-      # Write key.properties only if we created a keystore
-      - name: Write key.properties (if keystore present)
-        shell: bash
-        run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            # The heredoc terminator must be at column 0 of the shell block
             cat > android/key.properties <<'EOF'
-            storePassword=${ANDROID_KEYSTORE_PASSWORD}
-            keyPassword=${ANDROID_KEY_PASSWORD}
-            keyAlias=${ANDROID_KEY_ALIAS}
-            storeFile=./app/keystore.jks
-            EOF
+storePassword=${ANDROID_KEYSTORE_PASSWORD}
+keyPassword=${ANDROID_KEY_PASSWORD}
+keyAlias=${ANDROID_KEY_ALIAS}
+storeFile=./app/keystore.jks
+EOF
+          else
+            echo "ℹ️ No keystore provided. Will build an UNSIGNED release."
           fi
 
       - name: Build release APK
-        run: |
-          flutter build apk --release \
-            --dart-define=API_BASE_URL="$API_BASE_URL"
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
