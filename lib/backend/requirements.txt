@@ -17,4 +17,5 @@ Pillow==10.4.0
 supabase==2.4.1
 
 # Flask↔AWS Lambda adapter (only if your handler uses awsgi)
-awsgi==2.2.0
+aws-wsgi
+serverless-wsgi
