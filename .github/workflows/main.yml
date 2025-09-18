@@ -27,39 +27,41 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'   # match your local Flutter version
+          flutter-version: '3.24.0' # match your local
 
-      - name: Flutter pub get
+      - name: Pub get
         run: flutter pub get
 
-      # -------- OPTIONAL SIGNING (only if secrets are present) --------
-      - name: Prepare signing (conditional)
-        shell: bash
+      # Decode keystore only if secret is set
+      - name: Decode keystore (conditional)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [[ -n "$ANDROID_KEYSTORE_BASE64" ]]; then
-            echo "Keystore detected: configuring release signing..."
-            mkdir -p android/app
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-            cat > android/key.properties <<EOF
-storePassword=${ANDROID_KEYSTORE_PASSWORD}
-keyPassword=${ANDROID_KEY_PASSWORD}
-keyAlias=${ANDROID_KEY_ALIAS}
-storeFile=./app/keystore.jks
-EOF
-          else
-            echo "No keystore secrets set; building UNSIGNED release."
-          fi
+          mkdir -p android/app
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
+
+      # Write key.properties only if secret is set
+      - name: Write key.properties (conditional)
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          mkdir -p android
+          cat > android/key.properties <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS}
+          storeFile=./app/keystore.jks
+          EOF
 
       - name: Build release APK
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          flutter build apk --release --dart-define=API_BASE_URL="$API_BASE_URL"
+          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
