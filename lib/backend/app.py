@@ -48,6 +48,16 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 # ------------------------------------------------------------------
 app = Flask(__name__)
 
+@app.before_request
+def _log_request():
+    print(f"➡️ {request.method} {request.path}")
+
+
+@app.errorhandler(404)
+def _not_found(e):
+    print(f"❌ 404 for path: {request.path}")
+    return jsonify({"ok": False, "error": f"404 Not Found: {request.path}"}), 404
+
 # ---- Simple CORS (keeps your routes unchanged) -------------------
 @app.after_request
 def add_cors_headers(resp):
@@ -291,6 +301,8 @@ def segment_lines():
     try:
         if request.data:
             img = Image.open(io.BytesIO(request.data)).convert('RGB')
+            MAX_SIDE = 1280  
+            img.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
         else:
             return jsonify({"error": "No image data received"}), 400
         img_np = np.array(img)

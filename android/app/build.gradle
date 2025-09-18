@@ -1,12 +1,20 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def keystoreProperties = new Properties()
+def keystoreFile = rootProject.file("key.properties")   // looks in android/key.properties
+if (keystoreFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystoreFile))
+    println "Using signing from: ${keystoreFile}"       // helpful log
+} else {
+    println "WARNING: key.properties not found at ${keystoreFile}"
+}
+
 android {
-    namespace "com.example.plamproject"  
+    namespace "com.example.plamproject"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -14,10 +22,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
-    }
+    kotlinOptions { jvmTarget = JavaVersion.VERSION_1_8 }
 
     defaultConfig {
         applicationId = "com.example.plamproject"
@@ -27,9 +32,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            // Only set when key.properties exists
+            if (keystoreFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            // Use release signing if available, otherwise build unsigned (debug will still install)
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
 }
