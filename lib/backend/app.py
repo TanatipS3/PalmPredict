@@ -7,6 +7,7 @@ import base64
 import pickle
 import numpy as np
 from io import BytesIO
+from functools import lru_cache
 from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file, make_response
@@ -118,7 +119,12 @@ def compress_image_to_target_size(image_path, target_size_kb=800, step=5, min_qu
     buffer.seek(0)
     return buffer
 
+@lru_cache(maxsize=16)
 def download_profile_pkl(file_name):
+    """
+    Cache the downloaded pickle data to avoid repeated network requests.
+    Profile pickles are static and often shared, so caching provides a significant speedup.
+    """
     try:
         response = supabase.storage.from_("palm-models").download(file_name)
         if hasattr(response, "read"):
@@ -154,7 +160,12 @@ def filter_keypoints_by_mask(keypoints, descriptors, mask, class_name):
         cv2.imwrite(os.path.join(DEBUG_DIR, f"debug_filtered_{class_name}.png"), vis_filtered)
     return filtered_kp, np.array(filtered_desc) if filtered_desc else None
 
+@lru_cache(maxsize=1)
 def load_answer_profiles():
+    """
+    Cache the answer profiles list to avoid repeated DB queries.
+    This data is static configuration and rarely changes.
+    """
     try:
         response = supabase.table("answer_profiles").select("*").execute()
         profiles = response.data if response.data else []
