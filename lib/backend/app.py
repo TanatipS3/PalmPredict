@@ -11,6 +11,8 @@ from functools import lru_cache
 from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file, make_response
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import HTTPException
 
 from supabase import create_client
 import requests
@@ -48,6 +50,7 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 # Flask app
 # ------------------------------------------------------------------
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
 
 @app.before_request
 def _log_request():
@@ -294,6 +297,8 @@ def upload_user_profile():
                 "name": name, "passcode": passcode, "image_base64": image_base64, "last_updated": last_updated
             }).execute()
         return jsonify({"status": "success", "data": response.data})
+    except HTTPException as e:
+        return jsonify({"error": e.description}), e.code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -356,12 +361,15 @@ def segment_lines():
             "heart_line": predictions.get("heart-line", "ไม่พบข้อมูล"),
             "image_token": token
         })
+    except HTTPException as e:
+        return jsonify({"error": e.description}), e.code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get-mask-image', methods=['GET'])
 def get_mask_image():
-    token = request.args.get("token")
+    token = request.args.get("token", "")
+    token = secure_filename(token)
     filepath = os.path.join(DEBUG_DIR, f"masked_{token}.jpg")
     if not os.path.exists(filepath):
         return jsonify({"error": "Image not found for token"}), 404
