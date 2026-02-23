@@ -36,8 +36,8 @@ class ApiException implements Exception {
 class ApiService {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue:
-        'https://r6z1dwdcl0.execute-api.ap-southeast-1.amazonaws.com',
+    defaultValue: 'http://10.0.2.2:5000', // For Android Emulator
+    // Use 'http://127.0.0.1:5000' for iOS Simulator
   );
 
   static const _detect = '/detect-hand';

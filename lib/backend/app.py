@@ -385,3 +385,6 @@ except Exception as e:
     print("❌ Failed to load model configs:", e)
 
 # No `if __name__ == "__main__"` or waitress here — Lambda runs the app module.
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
