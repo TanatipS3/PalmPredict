@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart'; // for kIsWeb
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -34,11 +35,14 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue:
-        'https://r6z1dwdcl0.execute-api.ap-southeast-1.amazonaws.com',
-  );
+  static String get baseUrl {
+    const fromEnv = String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    // Default for local development
+    if (kIsWeb) return 'http://127.0.0.1:5000';
+    if (Platform.isAndroid) return 'http://10.0.2.2:5000';
+    return 'http://127.0.0.1:5000'; // iOS Simulator, Desktop, etc.
+  }
 
   static const _detect = '/detect-hand';
   static const _segment = '/segment-lines';

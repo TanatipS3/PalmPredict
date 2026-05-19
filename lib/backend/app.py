@@ -7,9 +7,12 @@ import base64
 import pickle
 import numpy as np
 from io import BytesIO
+from functools import lru_cache
 from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_file, make_response
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import HTTPException
 
 from supabase import create_client
 import requests
@@ -47,6 +50,7 @@ os.makedirs(DEBUG_DIR, exist_ok=True)
 # Flask app
 # ------------------------------------------------------------------
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB limit
 
 @app.before_request
 def _log_request():
@@ -118,6 +122,7 @@ def compress_image_to_target_size(image_path, target_size_kb=800, step=5, min_qu
     buffer.seek(0)
     return buffer
 
+@lru_cache(maxsize=16)
 def download_profile_pkl(file_name):
     try:
         response = supabase.storage.from_("palm-models").download(file_name)
@@ -154,6 +159,7 @@ def filter_keypoints_by_mask(keypoints, descriptors, mask, class_name):
         cv2.imwrite(os.path.join(DEBUG_DIR, f"debug_filtered_{class_name}.png"), vis_filtered)
     return filtered_kp, np.array(filtered_desc) if filtered_desc else None
 
+@lru_cache(maxsize=1)
 def load_answer_profiles():
     try:
         response = supabase.table("answer_profiles").select("*").execute()
@@ -283,6 +289,8 @@ def upload_user_profile():
                 "name": name, "passcode": passcode, "image_base64": image_base64, "last_updated": last_updated
             }).execute()
         return jsonify({"status": "success", "data": response.data})
+    except HTTPException as e:
+        return jsonify({"error": e.description}), e.code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -345,12 +353,15 @@ def segment_lines():
             "heart_line": predictions.get("heart-line", "ไม่พบข้อมูล"),
             "image_token": token
         })
+    except HTTPException as e:
+        return jsonify({"error": e.description}), e.code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get-mask-image', methods=['GET'])
 def get_mask_image():
-    token = request.args.get("token")
+    token = request.args.get("token", "")
+    token = secure_filename(token)
     filepath = os.path.join(DEBUG_DIR, f"masked_{token}.jpg")
     if not os.path.exists(filepath):
         return jsonify({"error": "Image not found for token"}), 404
@@ -384,4 +395,5 @@ try:
 except Exception as e:
     print("❌ Failed to load model configs:", e)
 
-# No `if __name__ == "__main__"` or waitress here — Lambda runs the app module.
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)

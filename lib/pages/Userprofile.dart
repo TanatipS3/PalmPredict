@@ -26,6 +26,8 @@ class _UserprofilePageState extends State<UserprofilePage> {
   final TextEditingController searchCodeController = TextEditingController();
   String transferCode = '';
   bool codeGenerated = false;
+  bool isGeneratingCode = false;
+  bool isSyncing = false;
 
   final supabase = Supabase.instance.client;
 
@@ -247,46 +249,60 @@ class _UserprofilePageState extends State<UserprofilePage> {
   }
 
   Future<void> generateTransferCode() async {
-    final newCode = generateSecureCode();
-    final now = DateTime.now().toIso8601String();
-    final bytes = await profileImage?.readAsBytes();
-    String? imageUrl;
-    if (profileImage != null) {
-      final imageBytes = await profileImage!.readAsBytes();
-      final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    if (isGeneratingCode) return;
+    setState(() => isGeneratingCode = true);
 
-      final response = await Supabase.instance.client.storage
-          .from('user-profiles')
-          .uploadBinary(fileName, imageBytes, fileOptions: const FileOptions(upsert: true));
-      imageUrl = Supabase.instance.client.storage
-          .from('user-profiles')
-          .getPublicUrl(fileName);
+    try {
+      final newCode = generateSecureCode();
+      final now = DateTime.now().toIso8601String();
+      String? imageUrl;
+      if (profileImage != null) {
+        final imageBytes = await profileImage!.readAsBytes();
+        final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+        await Supabase.instance.client.storage
+            .from('user-profiles')
+            .uploadBinary(fileName, imageBytes,
+                fileOptions: const FileOptions(upsert: true));
+        imageUrl = Supabase.instance.client.storage
+            .from('user-profiles')
+            .getPublicUrl(fileName);
+      }
+
+      await supabase.from('user_profiles').upsert({
+        'transfer_code': newCode,
+        'user_name': nameController.text,
+        'image_url': imageUrl,
+        'last_updated': now
+      });
+
+      setState(() {
+        transferCode = newCode;
+        codeGenerated = true;
+      });
+
+      await saveUserData();
+      await backupHistoryToSupabase(newCode);
+      Clipboard.setData(ClipboardData(text: transferCode));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ คัดลอกรหัสเรียบร้อย")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ เกิดข้อผิดพลาด: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isGeneratingCode = false);
     }
-
-    await supabase.from('user_profiles').upsert({
-      'transfer_code': newCode,
-      'user_name': nameController.text,
-      'image_url': imageUrl,
-      'last_updated': now
-    });
-
-    setState(() {
-      transferCode = newCode;
-      codeGenerated = true;
-    });
-
-    await saveUserData();
-    await backupHistoryToSupabase(newCode);
-    Clipboard.setData(ClipboardData(text: transferCode));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ คัดลอกรหัสเรียบร้อย")),
-    );
   }
 
   Future<void> syncProfileAndHistory() async {
     if (transferCode.isEmpty) return;
     final now = DateTime.now().toIso8601String();
-    final bytes = await profileImage?.readAsBytes();
     String? imageUrl;
     if (profileImage != null) {
       final imageBytes = await profileImage!.readAsBytes();
@@ -294,7 +310,8 @@ class _UserprofilePageState extends State<UserprofilePage> {
 
       await Supabase.instance.client.storage
           .from('user-profiles')
-          .uploadBinary(fileName, imageBytes, fileOptions: const FileOptions(upsert: true));
+          .uploadBinary(fileName, imageBytes,
+              fileOptions: const FileOptions(upsert: true));
       imageUrl = Supabase.instance.client.storage
           .from('user-profiles')
           .getPublicUrl(fileName);
@@ -305,12 +322,37 @@ class _UserprofilePageState extends State<UserprofilePage> {
       'user_name': nameController.text,
       'image_url': imageUrl,
       'last_updated': now
-    },onConflict: 'transfer_code');
+    }, onConflict: 'transfer_code');
 
     await backupHistoryToSupabase(transferCode);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("🔄 ข้อมูลถูกอัปเดตแล้ว")),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("🔄 ข้อมูลถูกอัปเดตแล้ว")),
+      );
+    }
+  }
+
+  Future<void> handleSync() async {
+    if (isSyncing) return;
+    setState(() => isSyncing = true);
+
+    try {
+      await Clipboard.setData(ClipboardData(text: transferCode));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("📋 คัดลอกรหัสและกำลังซิงค์...")),
+        );
+      }
+      await syncProfileAndHistory();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ เกิดข้อผิดพลาดในการซิงค์: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => isSyncing = false);
+    }
   }
 
   void onNavTap(int index) {
@@ -384,16 +426,25 @@ class _UserprofilePageState extends State<UserprofilePage> {
                       width: double.infinity,
                       margin: const EdgeInsets.symmetric(horizontal: 10),
                       child: ElevatedButton(
-                        onPressed: generateTransferCode,
+                        onPressed: isGeneratingCode ? null : generateTransferCode,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
+                          disabledBackgroundColor: Colors.grey[300],
                           padding: const EdgeInsets.symmetric(vertical: 15),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text("Generate Transfer Code", style: TextStyle(fontSize: 16)),
+                        child: isGeneratingCode
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.black),
+                              )
+                            : const Text("Generate Transfer Code",
+                                style: TextStyle(fontSize: 16)),
                       ),
                     )
                   else
@@ -403,18 +454,20 @@ class _UserprofilePageState extends State<UserprofilePage> {
                           width: double.infinity,
                           margin: const EdgeInsets.symmetric(horizontal: 10),
                           child: ElevatedButton.icon(
-                            onPressed: () async {
-                              await Clipboard.setData(ClipboardData(text: transferCode));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("📋 คัดลอกรหัสและกำลังซิงค์...")),
-                              );
-                              await syncProfileAndHistory();
-                            },
-                            icon: const Icon(Icons.sync),
+                            onPressed: isSyncing ? null : handleSync,
+                            icon: isSyncing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.black),
+                                  )
+                                : const Icon(Icons.sync),
                             label: Text(transferCode),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: Colors.black,
+                              disabledBackgroundColor: Colors.grey[300],
                               padding: const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
